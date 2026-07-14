@@ -1,5 +1,7 @@
 # Digital Human Skill
 
+Language: English | [中文](README_zh.md)
+
 An AI-agent skill for speaking-avatar generation: input person video + audio, output lip-synced talking-head video.
 
 ## Install

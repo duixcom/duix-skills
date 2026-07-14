@@ -1,5 +1,7 @@
 # Digital Human Skill
 
+语言：中文 | [English](README.md)
+
 用于 AI Agent 的数字人口播技能：输入人物视频和音频，输出口型驱动视频。
 
 ## 安装
