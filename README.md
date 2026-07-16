@@ -118,7 +118,7 @@ Copy any of these directly into your agent:
 
 ## Requirements
 
-* [ ] Available person video, preferably front-facing, clear, and unobstructed
+* [ ] Available person video，720p-4k, preferably front-facing, clear, and unobstructed
 * [ ] Available audio file that can be played normally
 * [ ] Agent environment that supports skills, such as Cursor, Codex, or OpenClaw
 * [ ] `DUIX_API_KEY` configured
