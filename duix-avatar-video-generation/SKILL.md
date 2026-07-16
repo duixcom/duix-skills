@@ -1,9 +1,13 @@
 ---
-name: digital-human
+name: duix-avatar-video-generation
 description: Generate digital human videos using duix-cli. When user provides a video of a person and an audio file, create a task that makes the person in the video speak the audio content. Trigger on phrases like "digital human", "talking head video", "make this person speak", "lip sync video", "duix".
+version: 1.0.0
+author: duix
+compatibility: openclaw, cursor, copilot, claude-code,codex,hermes
+tags: [video, ai, lip-sync, dub, video generation,avatar,digital human,ai-video]
 ---
 
-# Digital Human - 数字人视频生成
+# duix-avatar-video-generation - 数字人视频生成
 
 Generate talking-head videos using duix-cli. Takes a video of a person and an audio file, produces a video where the person appears to speak the audio content.
 
@@ -111,3 +115,22 @@ duix-cli compose download <task_id>
 - Task is async: need to poll status then download
 - Status command does NOT auto-download (use download command)
 - Logs contain full request/response JSON for debugging
+
+## 版本记录
+
+<table border="0">
+  <thead>
+    <tr>
+      <th>更新时间</th>
+      <th>版本号</th>
+      <th>更新内容</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>2026-07-16</td>
+      <td>v1.0.0</td>
+      <td>- 初始版本，支持基础唇形同步</td>
+    </tr>
+  </tbody>
+</table>

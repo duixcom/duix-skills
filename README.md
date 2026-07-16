@@ -118,10 +118,10 @@ Copy any of these directly into your agent:
 
 ## Requirements
 
-* [ ] Available person video，720p-4k, preferably front-facing, clear, and unobstructed
+* [ ] Available person video, 720p-4k, preferably front-facing, clear, and unobstructed
 * [ ] Available audio file that can be played normally
 * [ ] Agent environment that supports skills, such as Cursor, Codex, or OpenClaw
-* [ ] `DUIX_API_KEY` configured
+* [ ] `DUIX_API_KEY` configured ([how to get one](https://www.duix.com/dashboard/skills/api-key))
 
 ---
 
@@ -145,7 +145,7 @@ A: Confirm that `duix-avatar-video-generation/SKILL.md` and `duix-avatar-video-g
 A: Check whether the environment variable has taken effect, or reconfigure the local config file. If you do not have a key yet, get one from the [API Key management page](https://www.duix.com/dashboard/setting/api-key).
 
 **Q: How are credits calculated?**  
-A: Calls initiated through Skills use the credits of the logged-in account. For specific billing standards, see the [DUIX Pricing page](https://www.duix.com/pricing).
+A: Calls initiated through Skills use the credits of the logged-in account. For specific billing standards, see the [Pricing page](https://www.duix.com/pricing).
 
 **Q: What if I do not have enough credits?**  
 A: Visit the [Pricing page](https://www.duix.com/pricing) to view plans and recharge.

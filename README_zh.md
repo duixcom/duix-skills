@@ -137,7 +137,7 @@ Agent 执行前需确认可用认证：
     
 *   [ ] 支持 skills 的 Agent 环境（如 Cursor / Codex / OpenClaw 等）
     
-*   [ ] 已配置 
+*   [ ] 已配置 DUIX_API_KEY （[获取方式](https://www.duix.com/dashboard/skills/api-key)）
     
 
 ---
@@ -166,7 +166,7 @@ A: 检查环境变量是否生效，或重新配置本地配置文件。
 如果还没有 Key，前往 [API Key 管理页面](https://www.duix.com/dashboard/setting/api-key) 获取。
 
 **Q: 积分消耗如何计算？**  
-A: 通过 Skills 发起的调用，将使用所登录账户的积分。具体计费标准请参考 [DUIX 价格页面](https://www.duix.com/pricing)。
+A: 通过 Skills 发起的调用，将使用所登录账户的积分。具体计费标准请参考 [Pring 价格页面](https://www.duix.com/pricing)。
 
 **Q: 积分不足怎么办？**  
 A: 前往 [Pricing 价格页面](https://www.duix.com/pricing) 查看套餐并充值。
