@@ -24,6 +24,14 @@ git clone https://github.com/duixcom/duix-skills.git
 # Verify the installation
 ls duix-skills/duix-avatar-video-generation/SKILL.md
 duix-skills/duix-avatar-video-generation/scripts/duix_run.sh
+
+# Install duix-cli from the official npm registry
+npm i duix-cli -g --registry=https://registry.npmjs.org/
+
+# Optional: compare installed version with the official npm package
+# Package page: https://www.npmjs.com/package/duix-cli
+duix-cli --version
+npm view duix-cli version --registry=https://registry.npmjs.org/
 ```
 
 > **Agent integration requirement**: Place `duix-skills/duix-avatar-video-generation` in your agent's skills directory and make sure `duix-avatar-video-generation/SKILL.md` is discoverable.

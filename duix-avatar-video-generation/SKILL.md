@@ -13,19 +13,20 @@ Generate talking-head videos using duix-cli. Takes a video of a person and an au
 
 ## Prerequisites
 
-1. Configure npm mirror (China):
-```bash
-npm config set registry https://registry.npmmirror.com
-```
-
-2. Install bun runtime:
+1. Install bun runtime:
 ```bash
 npm install -g bun
 ```
 
-3. Install duix-cli:
+2. Install duix-cli from the official npm registry:
 ```bash
-npm i duix-cli -g
+npm i duix-cli -g --registry=https://registry.npmjs.org/
+```
+
+3. Optional: verify the installed version against the official npm registry:
+```bash
+duix-cli --version
+npm view duix-cli version --registry=https://registry.npmjs.org/
 ```
 
 4. Configure API Key:

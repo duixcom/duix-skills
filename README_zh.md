@@ -25,6 +25,13 @@ git clone https://github.com/duixcom/duix-skills.git
 ls duix-skills/duix-avatar-video-generation/SKILL.md
 duix-skills/duix-avatar-video-generation/scripts/duix_run.sh
 
+# 从 npm 官方源安装 duix-cli
+npm i duix-cli -g --registry=https://registry.npmjs.org/
+
+# 可选：对比本地版本和官方 npm 包版本
+# 包页面：https://www.npmjs.com/package/duix-cli
+duix-cli --version
+npm view duix-cli version --registry=https://registry.npmjs.org/
 ```
 > **Agent 集成要求**：将 `duix-skills/duix-avatar-video-generation` 放入 Agent 的 skills 目录并确保可发现 `duix-avatar-video-generation/SKILL.md`。
 

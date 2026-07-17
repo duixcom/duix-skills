@@ -14,6 +14,8 @@ NC='\033[0m'
 
 # Config file
 CONFIG_FILE="$HOME/.duixrc"
+NPM_REGISTRY="https://registry.npmjs.org/"
+NPM_INSTALL_CMD="npm i duix-cli -g --registry=$NPM_REGISTRY"
 
 # Load config
 load_config() {
@@ -109,7 +111,7 @@ check_duix_cli_update() {
     local latest_version
 
     current_version=$(duix-cli --version 2>/dev/null | grep -oE '[0-9]+(\.[0-9]+){1,2}([-+][0-9A-Za-z.-]+)?' | head -1 || true)
-    latest_version=$(npm view duix-cli version 2>/dev/null || true)
+    latest_version=$(npm view duix-cli version --registry="$NPM_REGISTRY" 2>/dev/null || true)
 
     if [ -z "$current_version" ] || [ -z "$latest_version" ]; then
         return 0
@@ -119,7 +121,7 @@ check_duix_cli_update() {
         echo -e "${YELLOW}duix-cli has a newer version available.${NC}"
         echo -e "Current: ${YELLOW}$current_version${NC}"
         echo -e "Latest:  ${GREEN}$latest_version${NC}"
-        echo -e "Update:  npm i duix-cli -g"
+        echo -e "Update:  $NPM_INSTALL_CMD"
         echo ""
     fi
 }
@@ -154,7 +156,7 @@ if [ ! -f "$AUDIO" ]; then
 fi
 
 if ! command -v duix-cli &> /dev/null; then
-    echo -e "${RED}Error: duix-cli not found. Install: npm i duix-cli -g${NC}"
+    echo -e "${RED}Error: duix-cli not found. Install: $NPM_INSTALL_CMD${NC}"
     exit 1
 fi
 
