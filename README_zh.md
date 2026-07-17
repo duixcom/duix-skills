@@ -12,7 +12,7 @@
 
 直接将以下提示词发送给你的 Agent，它会自动完成安装和配置：
 
-> 请帮我安装 duix-avatar-video-generation skill：从 https://github.com/duixcom/duix-skills 克隆到 skills 目录，并配置 DUIX\_API\_KEY（如果已设置环境变量则直接使用，否则提示我输入）。
+> 请帮我安装 duix-avatar-video-generation skill：从 https://github.com/duixcom/duix-skills 克隆到 skills 目录，并配置 DUIX_API_KEY（如果已设置环境变量则直接使用，否则提示我输入）。
 
 ### 方式二：手动安装
 
