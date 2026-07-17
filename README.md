@@ -109,10 +109,10 @@ Recommended confirmation message:
 
 Copy any of these directly into your agent:
 
-* "Use duix-avatar-video-generation to combine `person.mp4` and `voice.wav` into a speaking video, and output it to `./output`."
-* "I want to create a 30-second product introduction video where the person in the video speaks according to this audio."
-* "Use the same person video and generate 3 outreach versions with three different audio files."
-* "Create an operations weekly-report video with a natural tone, output it locally, and tell me the final file path."
+* Use duix-avatar-video-generation to combine the video `C:\Users\YourName\Videos\person.mp4` and the audio `C:\Users\YourName\Audio\voice.wav` into a speaking video.
+* I want to create a product introduction video where the person in `C:\Users\YourName\Videos\spokesperson.mp4` speaks according to the audio `C:\Users\YourName\Audio\intro.mp3`.
+* Use `C:\Users\YourName\Videos\avatar.mp4` as the person video, and generate 3 outreach versions from `C:\Users\YourName\Audio\script_a.mp3`, `C:\Users\YourName\Audio\script_b.mp3`, and `C:\Users\YourName\Audio\script_c.mp3`.
+* Create an operations weekly-report video using `C:\Users\YourName\Videos\reporter.mp4` as the person video and `C:\Users\YourName\Audio\weekly_report.mp3` as the speech audio, with a natural tone.
 
 ### Typical Business Scenarios
 
