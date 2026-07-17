@@ -115,16 +115,19 @@ Agent 执行前需确认可用认证：
 
 ### 提示词案例
 
-直接复制给 Agent 即可使用：
+直接复制给 Agent 即可使用，必须提供视频文件路径和音频文件路径（请替换为你本地的实际文件路径）：
 
 * 用 duix-avatar-video-generation 把视频 C:\Users\YourName\Videos\person.mp4 和音频 C:\Users\YourName\Audio\voice.wav 合成口播视频。
     
-* 我想做一条产品介绍视频，让 C:\Users\YourName\Videos\spokesperson.mp4 里的人物按 C:\Users\YourName\Audio\intro.mp3 这段音频说话。
+* 我想做一条产品介绍视频，让 https://duix.com/video/spokesperson.mp4 里的人物按 https://duix.com/audio\intro.mp3 这段音频说话。
     
-* 请用 C:\Users\YourName\Videos\avatar.mp4 这个人物视频，分别用 C:\Users\YourName\Audio\script_a.mp3、C:\Users\YourName\Audio\script_b.mp3、C:\Users\YourName\Audio\script_c.mp3 三段音频生成 3 个外呼版本。
+* 请用 https://duix.com/video/avatar.mp4 这个人物视频，分别用 C:\Users\YourName\Audio\script_a.mp3、C:\Users\YourName\Audio\script_b.mp3、C:\Users\YourName\Audio\script_c.mp3 三段音频生成 3 个外呼版本。
     
-* 做一条运营周报视频，用 C:\Users\YourName\Videos\reporter.mp4 作为人物，按 C:\Users\YourName\Audio\weekly_report.mp3 说话，语气自然。
-    
+* 做一条运营周报视频，用 C:\Users\YourName\Videos\reporter.mp4 作为人物，按 C:\Users\YourName\Audio\weekly_report.mp3 说话，语气自然。  
+
+💡 提示：
+将示例中的 C:\Users\YourName\*** 替换为你电脑上的实际路径，例如 D:\video\person.mp4。
+将示例中的 https://duix.com/video/spokesperson.mp4 替换为你电脑上的实际url地址，例如 https://duix.com/video/person.mp4。
 
 ### 典型业务场景
 

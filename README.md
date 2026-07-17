@@ -107,12 +107,16 @@ Recommended confirmation message:
 
 ### Prompt Examples
 
-Copy any of these directly into your agent:
+Copy any of these directly into your agent. You must provide both the video file path and the audio file path; replace the examples with your actual local file paths:
 
 * Use duix-avatar-video-generation to combine the video `C:\Users\YourName\Videos\person.mp4` and the audio `C:\Users\YourName\Audio\voice.wav` into a speaking video.
-* I want to create a product introduction video where the person in `C:\Users\YourName\Videos\spokesperson.mp4` speaks according to the audio `C:\Users\YourName\Audio\intro.mp3`.
-* Use `C:\Users\YourName\Videos\avatar.mp4` as the person video, and generate 3 outreach versions from `C:\Users\YourName\Audio\script_a.mp3`, `C:\Users\YourName\Audio\script_b.mp3`, and `C:\Users\YourName\Audio\script_c.mp3`.
+* I want to create a product introduction video where the person in `https://duix.com/video/spokesperson.mp4` speaks according to the audio `https://duix.com/audio\intro.mp3`.
+* Use `https://duix.com/video/avatar.mp4` as the person video, and generate 3 outreach versions from `C:\Users\YourName\Audio\script_a.mp3`, `C:\Users\YourName\Audio\script_b.mp3`, and `C:\Users\YourName\Audio\script_c.mp3`.
 * Create an operations weekly-report video using `C:\Users\YourName\Videos\reporter.mp4` as the person video and `C:\Users\YourName\Audio\weekly_report.mp3` as the speech audio, with a natural tone.
+
+Tip:
+Replace `C:\Users\YourName\***` in the examples with the actual path on your computer, such as `D:\video\person.mp4`.
+Replace `https://duix.com/video/spokesperson.mp4` in the examples with your actual URL, such as `https://duix.com/video/person.mp4`.
 
 ### Typical Business Scenarios
 

@@ -64,7 +64,7 @@ ensure_api_key() {
     if [ -z "$DUIX_API_KEY" ]; then
         echo -e "${YELLOW}未检测到 API Key，需要先配置。${NC}"
         echo -e "用法: $0 --config <api_key>"
-        echo -e "示例: $0 --config sk-xxxxxxxxxx"
+        echo -e "示例: $0 --config <your_api_key>"
         echo ""
         set_config
     fi
@@ -81,7 +81,7 @@ usage() {
     echo "配置文件: $CONFIG_FILE"
     echo ""
     echo "示例:"
-    echo "  $0 --config sk-xxxxxxxxxx"
+    echo "  $0 --config <your_api_key>"
     echo "  $0 person.mp4 voice.wav ./output"
     exit 0
 }
