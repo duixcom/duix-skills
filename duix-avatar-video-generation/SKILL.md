@@ -1,7 +1,7 @@
 ---
 name: duix-avatar-video-generation
 description: Generate digital human videos using duix-cli. When user provides a video of a person and an audio file, create a task that makes the person in the video speak the audio content. Trigger on phrases like "digital human", "talking head video", "make this person speak", "lip sync video", "duix".
-version: 1.1.0
+version: 1.1.2
 author: duix
 compatibility: openclaw, cursor, copilot, claude-code,codex,hermes
 tags: [video, ai, lip-sync, dub, video generation,avatar,digital human,ai-video]
@@ -66,7 +66,7 @@ duix-cli compose check -a input.wav
 ```
 
 Continue only when the user replies `是`; stop when the user replies `否` or any other value.
-Use `data.requiredCredits` for the estimated credits and `data.creditsLeft` for the current balance.
+Use `data.requiredCredits` for the estimated credits and `data.creditsLeft` for the current balance. These two credit prompts are also strict user-facing templates: preserve the exact Chinese text, line breaks, punctuation, and links, and re-render them from the template instead of showing garbled terminal output.
 
 ### Step 1: Create Task
 ```bash
@@ -143,6 +143,63 @@ duix-cli compose download <task_id>
 - On success, show the final task detail block including task ID, success status, video path, audio path, output file, video duration, consumed credits, and remaining credits.
 - On failure, show the final failure block including refunded credit status, the returned failure reason or `未知原因`, and retry suggestions.
 
+
+## Final User Message Format Requirements
+
+The final message shown to the user after a compose task finishes is a strict contract.
+The agent MUST output one of the following templates exactly, preserving the title text, section order, blank lines, indentation, bullet labels, and recharge link.
+Do not summarize, translate, reorder, omit fields, rename fields, or append any extra content after the template.
+Only replace the placeholder values such as `TASK_ID`, `VIDEO_PATH`, `AUDIO_PATH`, `OUTPUT_FILE`, `DURATION_SECONDS`, `REQUIRED_CREDITS`, `CREDITS_LEFT`, and `FAILURE_REASON`.
+
+Success template:
+
+```text
+✔️ 口播视频生成成功
+
+任务详情：
+  - 任务ID：TASK_ID
+  - 状态：success（成功）
+  - 视频：VIDEO_PATH
+  - 音频：AUDIO_PATH
+
+输出文件：
+  - OUTPUT_FILE
+  - 视频时长：DURATION_SECONDS 秒
+
+积分消耗：
+  - 本视频消耗：REQUIRED_CREDITS 积分
+  - 剩余积分：CREDITS_LEFT 积分（[去充值](https://duix.com/dashboard/duix-cli-skills/overview)）
+```
+
+Failure template:
+
+```text
+❌ 口播视频生成失败
+
+积分状态：积分已退还
+
+失败原因：FAILURE_REASON（如：视频分辨率超限 / 音频格式不支持 / 网络超时 / 模型异常等）
+
+建议：
+  - 若视频问题：请检查视频是否为正脸、清晰、无遮挡，且分辨率在支持范围内
+  - 若音频问题：请确认音频格式为 MP3/WAV，且可正常播放
+  - 若网络问题：请稍后重试，或检查网络连接
+  - 若积分问题：请前往 [DUIX 充值页面](https://duix.com/dashboard/duix-cli-skills/overview) 充值
+
+如需重试，请确认素材后再次提交。
+```
+
+If the compose task returns a failure reason, use it as `FAILURE_REASON`; otherwise use `未知原因`.
+If final credit lookup fails after a successful compose task, keep the success template and use `未知` for the missing credit or duration fields rather than adding explanatory text after the template.
+
+## Encoding and Mojibake Guard
+
+The final user-facing message MUST be rendered by the agent from the strict templates above, not copied blindly from terminal output if the terminal output is garbled.
+If stdout contains mojibake such as `鉁旓笍`, `鍙ｆ挱`, `绉垎`, `瑙嗛`, or similarly broken Chinese, treat it as an encoding artifact.
+Recover the actual values from the script output, log file, task JSON, paths, and credit check JSON, then re-render the final message in normal Chinese using the required success or failure template.
+Never show garbled Chinese to the user.
+If a value cannot be recovered safely, use `未知` for that value while preserving the required template format.
+
 ## Pitfalls
 
 - Face must be clearly visible in input video
@@ -161,6 +218,16 @@ duix-cli compose download <task_id>
     </tr>
   </thead>
   <tbody>
+    <tr>
+      <td>2026-07-20</td>
+      <td>v1.1.2</td>
+      <td>- 增加乱码防护规则，要求发现终端输出乱码时重新按中文模板渲染最终提示</td>
+    </tr>
+    <tr>
+      <td>2026-07-20</td>
+      <td>v1.1.1</td>
+      <td>- 强化合成任务结束后的最终提示词格式要求，要求严格按成功/失败模板输出</td>
+    </tr>
     <tr>
       <td>2026-07-20</td>
       <td>v1.1.0</td>

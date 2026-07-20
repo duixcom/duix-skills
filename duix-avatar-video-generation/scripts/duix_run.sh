@@ -5,6 +5,14 @@
 
 set -e
 
+# Prefer UTF-8 for Chinese final messages when the host shell supports it.
+export LANG="${LANG:-C.UTF-8}"
+export LC_ALL="${LC_ALL:-C.UTF-8}"
+export PYTHONIOENCODING="${PYTHONIOENCODING:-UTF-8}"
+if command -v chcp.com >/dev/null 2>&1; then
+    chcp.com 65001 >/dev/null 2>&1 || true
+fi
+
 # Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -157,18 +165,17 @@ confirm_credits() {
     credits_left=$(json_value "$check_result" "creditsLeft")
 
     if [ "$can_continue" != "true" ]; then
-        echo ""
-        echo "⚠️ 积分不足"
-        echo "本次任务预计需要 ${required_credits:-未知} 积分，当前账户余额 ${credits_left:-未知} 积分。"
-        echo "请前往 DUIX充值页面（https://www.duix.com/dashboard/duix-cli-skills/overview） 充值后再试。"
+        printf '⚠️ 积分不足
+本次任务预计需要 %s 积分，当前账户余额 %s 积分。
+请前往 DUIX充值页面（https://www.duix.com/dashboard/duix-cli-skills/overview） 充值后再试。
+' "${required_credits:-未知}" "${credits_left:-未知}"
         exit 1
     fi
 
-    echo ""
-    echo "💡 积分确认"
-    echo "本次口播视频生成预计消耗 ${required_credits:-未知} 积分，当前余额 ${credits_left:-未知} 积分。"
-    echo '确认提交请回复"是"，取消请回复"否"。'
-    echo ""
+    printf '💡 积分确认
+本次口播视频生成预计消耗 %s 积分，当前余额 %s 积分。
+确认提交请回复"是"，取消请回复"否"。
+' "${required_credits:-未知}" "${credits_left:-未知}"
     read -r answer
 
     if [ "$answer" != "是" ]; then
@@ -225,7 +232,7 @@ print_failure_result() {
     echo ""
     echo "积分状态：积分已退还"
     echo ""
-    echo "失败原因：$reason"
+    echo "失败原因：$reason（如：视频分辨率超限 / 音频格式不支持 / 网络超时 / 模型异常等）"
     echo ""
     echo "建议："
     echo "  - 若视频问题：请检查视频是否为正脸、清晰、无遮挡，且分辨率在支持范围内"
@@ -404,10 +411,10 @@ while true; do
             echo "$DOWNLOAD_RESULT"
         fi
         
-        log "=== Digital Human Run Completed ==="
-        print_success_result "$OUTPUT_FILE"
         echo ""
         echo -e "${GREEN}Log: $LOG_FILE${NC}"
+        log "=== Digital Human Run Completed ==="
+        print_success_result "$OUTPUT_FILE"
         break
     fi
     
@@ -418,9 +425,9 @@ while true; do
         log_json "ERROR RESPONSE" "$STATUS_JSON"
         log "=== Digital Human Run Failed ==="
         
-        print_failure_result "$FAILURE_REASON"
         echo ""
         echo -e "${RED}Log: $LOG_FILE${NC}"
+        print_failure_result "$FAILURE_REASON"
         exit 1
     fi
     
