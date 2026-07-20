@@ -1,7 +1,7 @@
 ---
 name: duix-avatar-video-generation
 description: Generate digital human videos using duix-cli. When user provides a video of a person and an audio file, create a task that makes the person in the video speak the audio content. Trigger on phrases like "digital human", "talking head video", "make this person speak", "lip sync video", "duix".
-version: 1.0.0
+version: 1.1.0
 author: duix
 compatibility: openclaw, cursor, copilot, claude-code,codex,hermes
 tags: [video, ai, lip-sync, dub, video generation,avatar,digital human,ai-video]
@@ -43,6 +43,31 @@ npm view duix-cli version --registry=https://registry.npmjs.org/
 
 ## Workflow
 
+### Step 0: Check Credits and Confirm
+```bash
+duix-cli compose check -a input.wav
+```
+- Run this before creating a compose task.
+- Read `data.canContinue` from the returned JSON.
+- If `data.canContinue` is `false`, stop the task and show:
+
+```text
+⚠️ 积分不足
+本次任务预计需要 XX 积分，当前账户余额 XX 积分。
+请前往 DUIX充值页面（https://www.duix.com/dashboard/duix-cli-skills/overview） 充值后再试。
+```
+
+- If `data.canContinue` is `true`, ask the user to confirm explicitly:
+
+```text
+💡 积分确认
+本次口播视频生成预计消耗 XX 积分，当前余额 XX 积分。
+确认提交请回复"是"，取消请回复"否"。
+```
+
+Continue only when the user replies `是`; stop when the user replies `否` or any other value.
+Use `data.requiredCredits` for the estimated credits and `data.creditsLeft` for the current balance.
+
 ### Step 1: Create Task
 ```bash
 duix-cli compose create --video input.mp4 --audio input.wav --output ./result
@@ -78,13 +103,19 @@ Example:
 
 Script handles:
 - API Key auto-loading from ~/.duixrc
+- Credit check with `duix-cli compose check -a <audio>` before task creation
+- Explicit user confirmation before credits are consumed
 - Task creation and polling
 - Download on completion
+- Final success/failure messages with task details, output path, and credit status
 - Debug logging to output_dir
 
 ## Direct CLI Usage
 
 ```bash
+# Check credits before creating a task
+duix-cli compose check -a input.wav
+
 # Create task
 duix-cli compose create --video input.mp4 --audio input.wav
 
@@ -109,6 +140,8 @@ duix-cli compose download <task_id>
 - File format: MP4
 - File name: `{remote_id}-{task_id}.mp4`
 - Logs: `duix_run_<timestamp>.log` in output directory
+- On success, show the final task detail block including task ID, success status, video path, audio path, output file, video duration, consumed credits, and remaining credits.
+- On failure, show the final failure block including refunded credit status, the returned failure reason or `未知原因`, and retry suggestions.
 
 ## Pitfalls
 
@@ -128,6 +161,11 @@ duix-cli compose download <task_id>
     </tr>
   </thead>
   <tbody>
+    <tr>
+      <td>2026-07-20</td>
+      <td>v1.1.0</td>
+      <td>- 增加合成前积分检查与用户确认；补充成功/失败最终提示信息</td>
+    </tr>
     <tr>
       <td>2026-07-16</td>
       <td>v1.0.0</td>

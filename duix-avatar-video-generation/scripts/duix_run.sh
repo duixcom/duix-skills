@@ -102,6 +102,139 @@ log_json() {
     echo "" >> "$LOG_FILE"
 }
 
+json_value() {
+    local json="$1"
+    local field="$2"
+
+    echo "$json" \
+        | grep -oP "\"$field\"\\s*:\\s*(\"[^\"]*\"|true|false|null|-?[0-9]+(\\.[0-9]+)?)" \
+        | head -1 \
+        | sed -E "s/^\"$field\"[[:space:]]*:[[:space:]]*//; s/^\"//; s/\"$//"
+}
+
+failure_reason_from_json() {
+    local json="$1"
+    local reason
+
+    reason=$(json_value "$json" "failureReason")
+    if [ -z "$reason" ]; then
+        reason=$(json_value "$json" "statusDesc")
+    fi
+    if [ -z "$reason" ]; then
+        reason=$(json_value "$json" "message")
+    fi
+    if [ -z "$reason" ]; then
+        reason=$(json_value "$json" "msg")
+    fi
+
+    echo "${reason:-未知原因}"
+}
+
+run_credit_check() {
+    local label="$1"
+    local check_result
+
+    if ! check_result=$(duix-cli compose check -a "$AUDIO"); then
+        log "ERROR: Failed to check credits"
+        log_json "$label CREDIT CHECK ERROR" "$check_result"
+        echo -e "${RED}Error: Failed to check credits${NC}"
+        exit 1
+    fi
+
+    log_json "$label CREDIT CHECK RESPONSE" "$check_result"
+    echo "$check_result"
+}
+
+confirm_credits() {
+    local check_result="$1"
+    local can_continue
+    local required_credits
+    local credits_left
+    local answer
+
+    can_continue=$(json_value "$check_result" "canContinue")
+    required_credits=$(json_value "$check_result" "requiredCredits")
+    credits_left=$(json_value "$check_result" "creditsLeft")
+
+    if [ "$can_continue" != "true" ]; then
+        echo ""
+        echo "⚠️ 积分不足"
+        echo "本次任务预计需要 ${required_credits:-未知} 积分，当前账户余额 ${credits_left:-未知} 积分。"
+        echo "请前往 DUIX充值页面（https://www.duix.com/dashboard/duix-cli-skills/overview） 充值后再试。"
+        exit 1
+    fi
+
+    echo ""
+    echo "💡 积分确认"
+    echo "本次口播视频生成预计消耗 ${required_credits:-未知} 积分，当前余额 ${credits_left:-未知} 积分。"
+    echo '确认提交请回复"是"，取消请回复"否"。'
+    echo ""
+    read -r answer
+
+    if [ "$answer" != "是" ]; then
+        log "User cancelled after credit confirmation"
+        echo "已取消本次口播视频生成任务。"
+        exit 0
+    fi
+}
+
+print_success_result() {
+    local output_file="$1"
+    local credit_result
+    local credits_left
+    local required_credits
+    local video_duration
+
+    if credit_result=$(duix-cli compose check -a "$AUDIO"); then
+        log_json "FINAL CREDIT CHECK RESPONSE" "$credit_result"
+        credits_left=$(json_value "$credit_result" "creditsLeft")
+        required_credits=$(json_value "$credit_result" "requiredCredits")
+        video_duration=$(json_value "$credit_result" "audioDurationSeconds")
+    else
+        log "WARNING: Failed to check final credits"
+        log_json "FINAL CREDIT CHECK ERROR" "$credit_result"
+    fi
+
+    echo ""
+    echo "✔️ 口播视频生成成功"
+    echo ""
+    echo "任务详情："
+    echo "  - 任务ID：$TASK_ID"
+    echo "  - 状态：success（成功）"
+    echo "  - 视频：$VIDEO"
+    echo "  - 音频：$AUDIO"
+    echo ""
+    echo "输出文件："
+    echo "  - ${output_file:-未知}"
+    echo "  - 视频时长：${video_duration:-未知} 秒"
+    echo ""
+    echo "积分消耗："
+    echo "  - 本视频消耗：${required_credits:-未知} 积分"
+    echo "  - 剩余积分：${credits_left:-未知} 积分（[去充值](https://duix.com/dashboard/duix-cli-skills/overview)）"
+}
+
+print_failure_result() {
+    local reason="${1:-未知原因}"
+
+    if [ -z "$reason" ]; then
+        reason="未知原因"
+    fi
+
+    echo ""
+    echo "❌ 口播视频生成失败"
+    echo ""
+    echo "积分状态：积分已退还"
+    echo ""
+    echo "失败原因：$reason"
+    echo ""
+    echo "建议："
+    echo "  - 若视频问题：请检查视频是否为正脸、清晰、无遮挡，且分辨率在支持范围内"
+    echo "  - 若音频问题：请确认音频格式为 MP3/WAV，且可正常播放"
+    echo "  - 若网络问题：请稍后重试，或检查网络连接"
+    echo "  - 若积分问题：请前往 [DUIX 充值页面](https://duix.com/dashboard/duix-cli-skills/overview) 充值"
+    echo ""
+    echo "如需重试，请确认素材后再次提交。"
+}
 check_duix_cli_update() {
     if ! command -v npm &> /dev/null; then
         return 0
@@ -183,10 +316,20 @@ echo ""
 echo -e "${CYAN}Log file: $LOG_FILE${NC}"
 echo ""
 
+# Credit check and user confirmation
+log "[STEP 0] Checking credits..."
+CREDIT_CHECK_RESULT=$(run_credit_check "INITIAL")
+confirm_credits "$CREDIT_CHECK_RESULT"
+
 # Step 1: Create task
 log "[STEP 1] Creating task..."
 
-CREATE_RESULT=$(duix-cli compose create --video "$VIDEO" --audio "$AUDIO" --output "$OUTPUT_DIR")
+if ! CREATE_RESULT=$(duix-cli compose create --video "$VIDEO" --audio "$AUDIO" --output "$OUTPUT_DIR"); then
+    log "ERROR: Failed to create task"
+    log_json "CREATE ERROR" "$CREATE_RESULT"
+    print_failure_result "$(failure_reason_from_json "$CREATE_RESULT")"
+    exit 1
+fi
 
 log_json "CREATE REQUEST" "duix-cli compose create --video \"$VIDEO\" --audio \"$AUDIO\" --output \"$OUTPUT_DIR\""
 log_json "CREATE RESPONSE" "$CREATE_RESULT"
@@ -198,7 +341,7 @@ TASK_ID=$(echo "$CREATE_RESULT" | grep -oP '"taskId"\s*:\s*"\K[^"]+')
 
 if [ -z "$TASK_ID" ]; then
     log "ERROR: Failed to extract task_id"
-    echo -e "${RED}Error: Failed to extract task_id${NC}"
+    print_failure_result "$(failure_reason_from_json "$CREATE_RESULT")"
     exit 1
 fi
 
@@ -262,6 +405,7 @@ while true; do
         fi
         
         log "=== Digital Human Run Completed ==="
+        print_success_result "$OUTPUT_FILE"
         echo ""
         echo -e "${GREEN}Log: $LOG_FILE${NC}"
         break
@@ -269,14 +413,12 @@ while true; do
     
     # Check failed
     if [ "$STATUS" = "FAILED" ]; then
-        FAILURE_REASON=$(echo "$STATUS_JSON" | grep -oP '"failureReason"\s*:\s*"\K[^"]+')
+        FAILURE_REASON=$(failure_reason_from_json "$STATUS_JSON")
         log "ERROR: Task failed - $FAILURE_REASON"
         log_json "ERROR RESPONSE" "$STATUS_JSON"
         log "=== Digital Human Run Failed ==="
         
-        echo ""
-        echo -e "${RED}Error: Task failed${NC}"
-        echo -e "${RED}Reason: $FAILURE_REASON${NC}"
+        print_failure_result "$FAILURE_REASON"
         echo ""
         echo -e "${RED}Log: $LOG_FILE${NC}"
         exit 1
@@ -284,3 +426,4 @@ while true; do
     
     sleep "$POLL_INTERVAL"
 done
+
