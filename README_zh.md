@@ -53,7 +53,7 @@ $env:DUIX_API_KEY="your-api-key-here"
 setx DUIX_API_KEY "your-api-key-here"
 
 ```
-> 🔑 **没有 API Key？** 前往 [API Key 管理页面](https://www.duix.com/dashboard/skills/api-key) 获取。   💰 **需要更多积分？** 前往 [Pricing 价格页面](https://www.duix.com/dashboard/skills/pricing) 查看套餐并充值。
+> 🔑 **没有 API Key？** 前往 [API Key 管理页面](https://www.duix.com/dashboard/duix-cli-skills/keys) 获取。   💰 **需要更多积分？** 前往 [Pricing 价格页面](https://www.duix.com/dashboard/duix-cli-skills/pricing) 查看套餐并充值。
 
 ---
 
@@ -149,7 +149,7 @@ Agent 执行前需确认可用认证：
     
 *   [ ] 支持 skills 的 Agent 环境（如 Cursor / Codex / OpenClaw 等）
     
-*   [ ] 已配置 DUIX_API_KEY （[获取方式](https://www.duix.com/dashboard/skills/api-key)）
+*   [ ] 已配置 DUIX_API_KEY （[获取方式](https://www.duix.com/dashboard/duix-cli-skills/keys)）
     
 
 ---

@@ -54,7 +54,7 @@ $env:DUIX_API_KEY="your-api-key-here"
 setx DUIX_API_KEY "your-api-key-here"
 ```
 
-> **No API key?** Get one from the [API Key management page](https://www.duix.com/dashboard/skills/api-key). **Need more credits?** Visit the [Pricing page](https://www.duix.com/dashboard/skills/pricing) to view plans and recharge.
+> **No API key?** Get one from the [API Key management page](https://www.duix.com/dashboard/duix-cli-skills/keys). **Need more credits?** Visit the [Pricing page](https://www.duix.com/dashboard/duix-cli-skills/pricing) to view plans and recharge.
 
 ---
 
@@ -134,7 +134,7 @@ Replace `https://duix.com/video/spokesperson.mp4` in the examples with your actu
 * [ ] Available person video, 720p-4k, preferably front-facing, clear, and unobstructed
 * [ ] Available audio file that can be played normally
 * [ ] Agent environment that supports skills, such as Cursor, Codex, or OpenClaw
-* [ ] `DUIX_API_KEY` configured ([how to get one](https://www.duix.com/dashboard/skills/api-key))
+* [ ] `DUIX_API_KEY` configured ([how to get one](https://www.duix.com/dashboard/duix-cli-skills/keys))
 
 ---
 
