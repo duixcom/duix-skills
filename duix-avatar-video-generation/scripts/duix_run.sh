@@ -5,7 +5,7 @@
 
 set -e
 
-# Prefer UTF-8 for Chinese final messages when the host shell supports it.
+# Prefer UTF-8 for final messages when the host shell supports it.
 export LANG="${LANG:-C.UTF-8}"
 export LC_ALL="${LC_ALL:-C.UTF-8}"
 export PYTHONIOENCODING="${PYTHONIOENCODING:-UTF-8}"
@@ -45,17 +45,17 @@ save_config() {
 set_config() {
     local key="$1"
     
-    echo -e "${CYAN}=== Digital Human 配置 ===${NC}"
+    echo -e "${CYAN}=== Digital Human Configuration ===${NC}"
     echo ""
     
     if [ -n "$key" ]; then
         save_config "$key"
     else
-        echo "请输入 DUIX_API_KEY:"
+        echo "Please enter DUIX_API_KEY:"
         read -p "> " key
         
         if [ -z "$key" ]; then
-            echo -e "${RED}Error: API Key 不能为空${NC}"
+            echo -e "${RED}Error: API Key cannot be empty${NC}"
             exit 1
         fi
         
@@ -70,9 +70,9 @@ ensure_api_key() {
     load_config
     
     if [ -z "$DUIX_API_KEY" ]; then
-        echo -e "${YELLOW}未检测到 API Key，需要先配置。${NC}"
-        echo -e "用法: $0 --config <api_key>"
-        echo -e "示例: $0 --config <your_api_key>"
+        echo -e "${YELLOW}API Key was not detected. Please configure it first.${NC}"
+        echo -e "Usage: $0 --config <api_key>"
+        echo -e "Example: $0 --config <your_api_key>"
         echo ""
         set_config
     fi
@@ -83,12 +83,12 @@ ensure_api_key() {
 
 usage() {
     echo "Usage:"
-    echo "  $0 <video_file> <audio_file> [output_dir]   运行任务"
-    echo "  $0 --config <api_key>                       配置 API Key"
+    echo "  $0 <video_file> <audio_file> [output_dir]   Run task"
+    echo "  $0 --config <api_key>                       Configure API Key"
     echo ""
-    echo "配置文件: $CONFIG_FILE"
+    echo "Config file: $CONFIG_FILE"
     echo ""
-    echo "示例:"
+    echo "Examples:"
     echo "  $0 --config <your_api_key>"
     echo "  $0 person.mp4 voice.wav ./output"
     exit 0
@@ -135,7 +135,7 @@ failure_reason_from_json() {
         reason=$(json_value "$json" "msg")
     fi
 
-    echo "${reason:-未知原因}"
+    echo "${reason:-Unknown reason}"
 }
 
 run_credit_check() {
@@ -165,23 +165,94 @@ confirm_credits() {
     credits_left=$(json_value "$check_result" "creditsLeft")
 
     if [ "$can_continue" != "true" ]; then
-        printf '⚠️ 积分不足
-本次任务预计需要 %s 积分，当前账户余额 %s 积分。
-请前往 DUIX充值页面（https://www.duix.com/dashboard/duix-cli-skills/overview） 充值后再试。
-' "${required_credits:-未知}" "${credits_left:-未知}"
+        printf '⚠️ Insufficient Credits
+This task is estimated to require %s credits. Current account balance: %s credits.
+Please go to the DUIX recharge page (https://www.duix.com/dashboard/duix-cli-skills/overview), recharge, and try again.
+' "${required_credits:-Unknown}" "${credits_left:-Unknown}"
         exit 1
     fi
 
-    printf '💡 积分确认
-本次口播视频生成预计消耗 %s 积分，当前余额 %s 积分。
-确认提交请回复"是"，取消请回复"否"。
-' "${required_credits:-未知}" "${credits_left:-未知}"
+    printf '💡 Credit Confirmation
+This talking-head video generation is estimated to consume %s credits. Current balance: %s credits.
+To confirm submission, reply "yes". To cancel, reply "no".
+' "${required_credits:-Unknown}" "${credits_left:-Unknown}"
     read -r answer
 
-    if [ "$answer" != "是" ]; then
-        log "User cancelled after credit confirmation"
-        echo "已取消本次口播视频生成任务。"
-        exit 0
+    case "$(printf '%s' "$answer" | tr '[:upper:]' '[:lower:]')" in
+        yes|y) ;;
+        *)
+            log "User cancelled after credit confirmation"
+            echo "The talking-head video generation task has been cancelled."
+            exit 0
+            ;;
+    esac
+}
+
+absolute_path() {
+    local input="$1"
+
+    if [ -z "$input" ]; then
+        return 1
+    fi
+
+    if command -v cygpath >/dev/null 2>&1; then
+        cygpath -wa "$input" 2>/dev/null && return 0
+    fi
+
+    if command -v realpath >/dev/null 2>&1; then
+        realpath "$input" 2>/dev/null && return 0
+    fi
+
+    case "$input" in
+        /*) printf '%s
+' "$input" ;;
+        *) printf '%s/%s
+' "$(pwd)" "$input" ;;
+    esac
+}
+
+file_uri() {
+    local input="$1"
+    local uri_path
+    local abs
+
+    if [ -z "$input" ]; then
+        return 1
+    fi
+
+    if command -v cygpath >/dev/null 2>&1; then
+        uri_path=$(cygpath -am "$input" 2>/dev/null || true)
+        if [ -n "$uri_path" ]; then
+            printf 'file:///%s
+' "$uri_path"
+            return 0
+        fi
+    fi
+
+    abs=$(absolute_path "$input" 2>/dev/null || true)
+    if [ -n "$abs" ]; then
+        printf 'file://%s
+' "$abs"
+    fi
+}
+
+markdown_file_link() {
+    local input="$1"
+    local abs
+    local uri
+
+    abs=$(absolute_path "$input" 2>/dev/null || true)
+    uri=$(file_uri "$input" 2>/dev/null || true)
+
+    if [ -n "$abs" ] && [ -n "$uri" ]; then
+        printf '[%s](<%s>)
+' "$abs" "$uri"
+    elif [ -n "$abs" ]; then
+        printf '%s
+' "$abs"
+    else
+        printf 'Unknown
+'
     fi
 }
 
@@ -191,6 +262,7 @@ print_success_result() {
     local credits_left
     local required_credits
     local video_duration
+    local output_link
 
     if credit_result=$(duix-cli compose check -a "$AUDIO"); then
         log_json "FINAL CREDIT CHECK RESPONSE" "$credit_result"
@@ -202,45 +274,47 @@ print_success_result() {
         log_json "FINAL CREDIT CHECK ERROR" "$credit_result"
     fi
 
+    output_link=$(markdown_file_link "$output_file")
+
     echo ""
-    echo "✔️ 口播视频生成成功"
+    echo "✔️ Talking-head Video Generated Successfully"
     echo ""
-    echo "任务详情："
-    echo "  - 任务ID：$TASK_ID"
-    echo "  - 状态：success（成功）"
-    echo "  - 视频：$VIDEO"
-    echo "  - 音频：$AUDIO"
+    echo "Task Details:"
+    echo "  - Task ID: $TASK_ID"
+    echo "  - Status: success (succeeded)"
+    echo "  - Video: $VIDEO"
+    echo "  - Audio: $AUDIO"
     echo ""
-    echo "输出文件："
-    echo "  - ${output_file:-未知}"
-    echo "  - 视频时长：${video_duration:-未知} 秒"
+    echo "Output File:"
+    echo "  - $output_link"
+    echo "  - Video Duration: ${video_duration:-Unknown} seconds"
     echo ""
-    echo "积分消耗："
-    echo "  - 本视频消耗：${required_credits:-未知} 积分"
-    echo "  - 剩余积分：${credits_left:-未知} 积分（[去充值](https://duix.com/dashboard/duix-cli-skills/overview)）"
+    echo "Credit Usage:"
+    echo "  - Credits consumed by this video: ${required_credits:-Unknown} credits"
+    echo "  - Remaining credits: ${credits_left:-Unknown} credits ([Recharge](https://duix.com/dashboard/duix-cli-skills/overview))"
 }
 
 print_failure_result() {
-    local reason="${1:-未知原因}"
+    local reason="${1:-Unknown reason}"
 
     if [ -z "$reason" ]; then
-        reason="未知原因"
+        reason="Unknown reason"
     fi
 
     echo ""
-    echo "❌ 口播视频生成失败"
+    echo "❌ Talking-head Video Generation Failed"
     echo ""
-    echo "积分状态：积分已退还"
+    echo "Credit Status: credits have been refunded"
     echo ""
-    echo "失败原因：$reason（如：视频分辨率超限 / 音频格式不支持 / 网络超时 / 模型异常等）"
+    echo "Failure Reason: $reason (for example: video resolution exceeds the limit / audio format is unsupported / network timeout / model exception)"
     echo ""
-    echo "建议："
-    echo "  - 若视频问题：请检查视频是否为正脸、清晰、无遮挡，且分辨率在支持范围内"
-    echo "  - 若音频问题：请确认音频格式为 MP3/WAV，且可正常播放"
-    echo "  - 若网络问题：请稍后重试，或检查网络连接"
-    echo "  - 若积分问题：请前往 [DUIX 充值页面](https://duix.com/dashboard/duix-cli-skills/overview) 充值"
+    echo "Suggestions:"
+    echo "  - For video issues: check whether the video is front-facing, clear, unobstructed, and within the supported resolution range"
+    echo "  - For audio issues: confirm the audio format is MP3/WAV and can be played normally"
+    echo "  - For network issues: retry later or check the network connection"
+    echo "  - For credit issues: go to the [DUIX recharge page](https://duix.com/dashboard/duix-cli-skills/overview) to recharge"
     echo ""
-    echo "如需重试，请确认素材后再次提交。"
+    echo "To retry, confirm the source assets and submit again."
 }
 check_duix_cli_update() {
     if ! command -v npm &> /dev/null; then
