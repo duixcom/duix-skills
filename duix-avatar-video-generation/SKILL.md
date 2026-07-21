@@ -1,7 +1,7 @@
 ---
 name: duix-avatar-video-generation
 description: Generate digital human videos using duix-cli. When user provides a video of a person and an audio file, create a task that makes the person in the video speak the audio content. Trigger on phrases like "digital human", "talking head video", "make this person speak", "lip sync video", "duix".
-version: 1.1.4
+version: 1.1.5
 author: duix
 compatibility: openclaw, cursor, copilot, claude-code,codex,hermes
 tags: [duix,video, ai, lip-sync, dub, video-generation, avatar, digital-human, ai-video]
@@ -28,7 +28,7 @@ npm install -g bun
 npm i duix-cli -g --registry=https://registry.npmjs.org/
 ```
 
-3. Optional: verify the installed version against the official npm registry:
+3. Version check: every skill run checks the local duix-cli version against the official npm registry. If a newer version is available, the user is prompted to update to the latest version:
 ```bash
 duix-cli --version
 npm view duix-cli version --registry=https://registry.npmjs.org/
@@ -107,6 +107,7 @@ Example:
 ```
 
 Script handles:
+- Forced duix-cli latest-version check against the official npm registry on every run
 - API Key auto-loading from ~/.duixrc
 - Credit check with `duix-cli compose check -a <audio>` before task creation
 - Explicit user confirmation before credits are consumed
@@ -216,6 +217,7 @@ If a value cannot be recovered safely, use `Unknown` for that value while preser
 
 | Updated At | Version | Changes |
 | --- | --- | --- |
+| 2026-07-21 | v1.1.5 | - Force duix-cli version checking against the official npm registry on every skill run and prompt users to update when a newer version is available |
 | 2026-07-21 | v1.1.4 | - Add example videos |
 | 2026-07-21 | v1.1.3 | - Translated SKILL.md and duix_run.sh user-facing Chinese text into English; changed successful output file display to a local absolute-path Markdown link |
 | 2026-07-20 | v1.1.2 | - Added mojibake guard rules requiring final prompts to be re-rendered from templates when terminal output is garbled |

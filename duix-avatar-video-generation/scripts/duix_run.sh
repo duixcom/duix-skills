@@ -337,25 +337,43 @@ print_failure_result() {
     echo "To retry, confirm the source assets and submit again."
 }
 check_duix_cli_update() {
-    if ! command -v npm &> /dev/null; then
-        return 0
-    fi
-
     local current_version
     local latest_version
+
+    echo -e "${CYAN}Checking duix-cli version from the official npm registry: $NPM_REGISTRY${NC}"
+
+    if ! command -v npm &> /dev/null; then
+        echo -e "${YELLOW}Warning: npm was not found, so the duix-cli latest-version check could not be completed.${NC}"
+        echo -e "Install npm and run: $NPM_INSTALL_CMD"
+        echo ""
+        return 0
+    fi
 
     current_version=$(duix-cli --version 2>/dev/null | grep -oE '[0-9]+(\.[0-9]+){1,2}([-+][0-9A-Za-z.-]+)?' | head -1 || true)
     latest_version=$(npm view duix-cli version --registry="$NPM_REGISTRY" 2>/dev/null || true)
 
-    if [ -z "$current_version" ] || [ -z "$latest_version" ]; then
+    if [ -z "$current_version" ]; then
+        echo -e "${YELLOW}Warning: failed to read the local duix-cli version.${NC}"
+        echo -e "Reinstall or update with: $NPM_INSTALL_CMD"
+        echo ""
+        return 0
+    fi
+
+    if [ -z "$latest_version" ]; then
+        echo -e "${YELLOW}Warning: failed to query the latest duix-cli version from $NPM_REGISTRY.${NC}"
+        echo -e "You can manually check with: npm view duix-cli version --registry=$NPM_REGISTRY"
+        echo ""
         return 0
     fi
 
     if [ "$current_version" != "$latest_version" ]; then
-        echo -e "${YELLOW}duix-cli has a newer version available.${NC}"
+        echo -e "${YELLOW}duix-cli has a newer version available. Please update to the latest version.${NC}"
         echo -e "Current: ${YELLOW}$current_version${NC}"
         echo -e "Latest:  ${GREEN}$latest_version${NC}"
         echo -e "Update:  $NPM_INSTALL_CMD"
+        echo ""
+    else
+        echo -e "${GREEN}duix-cli is up to date: $current_version${NC}"
         echo ""
     fi
 }
