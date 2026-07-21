@@ -27,12 +27,19 @@ NPM_INSTALL_CMD="npm i duix-cli -g --registry=$NPM_REGISTRY"
 
 # Load config
 load_config() {
+    local key_line
+
     if [ -f "$CONFIG_FILE" ]; then
-        source "$CONFIG_FILE"
-        export DUIX_API_KEY="$DUIX_API_KEY"
+        key_line=$(grep -E '^DUIX_API_KEY=' "$CONFIG_FILE" 2>/dev/null | tail -1 || true)
+        if [ -n "$key_line" ]; then
+            DUIX_API_KEY="${key_line#DUIX_API_KEY=}"
+            DUIX_API_KEY=$(printf '%s' "$DUIX_API_KEY" | tr -d '\r')
+            DUIX_API_KEY="${DUIX_API_KEY%\"}"
+            DUIX_API_KEY="${DUIX_API_KEY#\"}"
+            export DUIX_API_KEY
+        fi
     fi
 }
-
 # Save config
 save_config() {
     local key="$1"
@@ -113,11 +120,24 @@ log_json() {
 json_value() {
     local json="$1"
     local field="$2"
+    local value
 
-    echo "$json" \
-        | grep -oP "\"$field\"\\s*:\\s*(\"[^\"]*\"|true|false|null|-?[0-9]+(\\.[0-9]+)?)" \
+    if command -v jq >/dev/null 2>&1; then
+        value=$(printf '%s' "$json" \
+            | jq -r --arg field "$field" '.. | objects | select(has($field)) | .[$field] | select(. != null) | tostring' 2>/dev/null \
+            | head -1)
+        if [ -n "$value" ]; then
+            printf '%s
+' "$value"
+            return 0
+        fi
+    fi
+
+    printf '%s
+' "$json" \
+        | sed -nE "s/.*\"$field\"[[:space:]]*:[[:space:]]*(\"[^\"]*\"|true|false|null|-?[0-9]+(\.[0-9]+)?).*/\1/p" \
         | head -1 \
-        | sed -E "s/^\"$field\"[[:space:]]*:[[:space:]]*//; s/^\"//; s/\"$//"
+        | sed -E "s/^\"//; s/\"$//"
 }
 
 failure_reason_from_json() {
@@ -179,7 +199,7 @@ To confirm submission, reply "yes". To cancel, reply "no".
     read -r answer
 
     case "$(printf '%s' "$answer" | tr '[:upper:]' '[:lower:]')" in
-        yes|y) ;;
+        yes|y|是) ;;
         *)
             log "User cancelled after credit confirmation"
             echo "The talking-head video generation task has been cancelled."
@@ -357,6 +377,9 @@ VIDEO="$1"
 AUDIO="$2"
 OUTPUT_DIR="${3:-.}"
 POLL_INTERVAL="${4:-10}"
+MAX_POLLS="${MAX_POLLS:-0}"
+case "$POLL_INTERVAL" in ""|*[!0-9]*) POLL_INTERVAL=10 ;; esac
+case "$MAX_POLLS" in ""|*[!0-9]*) MAX_POLLS=0 ;; esac
 
 # Validate inputs
 if [ ! -f "$VIDEO" ]; then
@@ -379,7 +402,10 @@ check_duix_cli_update
 # Ensure API key is configured
 ensure_api_key
 
-mkdir -p "$OUTPUT_DIR"
+if ! mkdir -p "$OUTPUT_DIR"; then
+    echo -e "${RED}Error: Failed to create output directory: $OUTPUT_DIR${NC}"
+    exit 1
+fi
 
 # Setup log file
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -418,7 +444,7 @@ log_json "CREATE RESPONSE" "$CREATE_RESULT"
 echo "$CREATE_RESULT" | head -30
 
 # Extract task_id from JSON
-TASK_ID=$(echo "$CREATE_RESULT" | grep -oP '"taskId"\s*:\s*"\K[^"]+')
+TASK_ID=$(json_value "$CREATE_RESULT" "taskId")
 
 if [ -z "$TASK_ID" ]; then
     log "ERROR: Failed to extract task_id"
@@ -438,14 +464,37 @@ POLL_COUNT=0
 
 while true; do
     POLL_COUNT=$((POLL_COUNT + 1))
+    if [ "$MAX_POLLS" -gt 0 ] && [ "$POLL_COUNT" -gt "$MAX_POLLS" ]; then
+        log "ERROR: Polling exceeded MAX_POLLS=$MAX_POLLS"
+        echo ""
+        echo -e "${RED}Log: $LOG_FILE${NC}"
+        print_failure_result "Polling timed out before the task completed"
+        exit 1
+    fi
     
     log "Poll #$POLL_COUNT: Querying status..."
-    STATUS_JSON=$(duix-cli compose status "$TASK_ID")
+    if ! STATUS_JSON=$(duix-cli compose status "$TASK_ID" 2>&1); then
+        log "ERROR: Failed to query task status"
+        log_json "STATUS ERROR #$POLL_COUNT" "$STATUS_JSON"
+        echo ""
+        echo -e "${RED}Log: $LOG_FILE${NC}"
+        print_failure_result "Failed to query task status"
+        exit 1
+    fi
     
     # Extract status from JSON
-    STATUS=$(echo "$STATUS_JSON" | grep -oP '"status"\s*:\s*"\K[^"]+')
-    PROGRESS=$(echo "$STATUS_JSON" | grep -oP '"progress"\s*:\s*\K[0-9]+')
-    STATUS_DESC=$(echo "$STATUS_JSON" | grep -oP '"statusDesc"\s*:\s*"\K[^"]+')
+    STATUS=$(json_value "$STATUS_JSON" "status")
+    PROGRESS=$(json_value "$STATUS_JSON" "progress")
+    STATUS_DESC=$(json_value "$STATUS_JSON" "statusDesc")
+
+    if [ -z "$STATUS" ]; then
+        log "ERROR: Failed to parse task status"
+        log_json "STATUS PARSE ERROR #$POLL_COUNT" "$STATUS_JSON"
+        echo ""
+        echo -e "${RED}Log: $LOG_FILE${NC}"
+        print_failure_result "Failed to parse task status"
+        exit 1
+    fi
     
     log "Status: $STATUS ($STATUS_DESC) | Progress: ${PROGRESS}%"
     log_json "STATUS RESPONSE #$POLL_COUNT" "$STATUS_JSON"
@@ -456,7 +505,7 @@ while true; do
     if [ "$STATUS" = "SUCCEEDED" ]; then
         log "[STEP 3] Task completed! Starting download..."
         
-        OUTPUT_URL=$(echo "$STATUS_JSON" | grep -oP '"outputUrl"\s*:\s*"\K[^"]+')
+        OUTPUT_URL=$(json_value "$STATUS_JSON" "outputUrl")
         log "Output URL: $OUTPUT_URL"
         
         echo ""
@@ -464,12 +513,19 @@ while true; do
         echo -e "${YELLOW}Downloading...${NC}"
         
         # Step 3: Download
-        DOWNLOAD_RESULT=$(duix-cli compose download "$TASK_ID")
+        if ! DOWNLOAD_RESULT=$(duix-cli compose download "$TASK_ID" 2>&1); then
+            log "ERROR: Failed to download result"
+            log_json "DOWNLOAD ERROR" "$DOWNLOAD_RESULT"
+            echo ""
+            echo -e "${RED}Log: $LOG_FILE${NC}"
+            print_failure_result "Failed to download result"
+            exit 1
+        fi
         
         log_json "DOWNLOAD RESPONSE" "$DOWNLOAD_RESULT"
         
         # Extract downloaded file path
-        OUTPUT_FILE=$(echo "$DOWNLOAD_RESULT" | grep -oP '"downloadedFilePath"\s*:\s*"\K[^"]+')
+        OUTPUT_FILE=$(json_value "$DOWNLOAD_RESULT" "downloadedFilePath")
         
         if [ -n "$OUTPUT_FILE" ] && [ -f "$OUTPUT_FILE" ]; then
             FILE_SIZE=$(ls -lh "$OUTPUT_FILE" | awk '{print $5}')
@@ -480,9 +536,13 @@ while true; do
             echo -e "${GREEN}Output: $OUTPUT_FILE${NC}"
             ls -lh "$OUTPUT_FILE"
         else
-            log "WARNING: Download may have failed"
+            log "ERROR: Download response did not contain a local output file"
             echo -e "${YELLOW}Download response:${NC}"
             echo "$DOWNLOAD_RESULT"
+            echo ""
+            echo -e "${RED}Log: $LOG_FILE${NC}"
+            print_failure_result "Downloaded output file was not found locally"
+            exit 1
         fi
         
         echo ""
@@ -507,4 +567,3 @@ while true; do
     
     sleep "$POLL_INTERVAL"
 done
-
