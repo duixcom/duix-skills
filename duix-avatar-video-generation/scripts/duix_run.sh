@@ -311,7 +311,7 @@ print_success_result() {
     echo ""
     echo "Credit Usage:"
     echo "  - Credits consumed by this video: ${required_credits:-Unknown} credits"
-    echo "  - Remaining credits: ${credits_left:-Unknown} credits ([Recharge](https://duix.com/dashboard/duix-cli-skills/overview))"
+    echo "  - Remaining credits: ${credits_left:-Unknown} credits ([Recharge](https://www.duix.com/dashboard/duix-cli-skills/pricing))"
 }
 
 print_failure_result() {
@@ -332,7 +332,7 @@ print_failure_result() {
     echo "  - For video issues: check whether the video is front-facing, clear, unobstructed, and within the supported resolution range"
     echo "  - For audio issues: confirm the audio format is MP3/WAV and can be played normally"
     echo "  - For network issues: retry later or check the network connection"
-    echo "  - For credit issues: go to the [DUIX recharge page](https://duix.com/dashboard/duix-cli-skills/overview) to recharge"
+    echo "  - For credit issues: go to the [DUIX recharge page](https://www.duix.com/dashboard/duix-cli-skills/pricing) to recharge"
     echo ""
     echo "To retry, confirm the source assets and submit again."
 }

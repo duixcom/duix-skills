@@ -173,7 +173,7 @@ Output File:
 
 Credit Usage:
   - Credits consumed by this video: REQUIRED_CREDITS credits
-  - Remaining credits: CREDITS_LEFT credits ([Recharge](https://duix.com/dashboard/duix-cli-skills/overview))
+  - Remaining credits: CREDITS_LEFT credits ([Recharge](https://www.duix.com/dashboard/duix-cli-skills/pricing))
 ```
 
 Failure template:
@@ -189,7 +189,7 @@ Suggestions:
   - For video issues: check whether the video is front-facing, clear, unobstructed, and within the supported resolution range
   - For audio issues: confirm the audio format is MP3/WAV and can be played normally
   - For network issues: retry later or check the network connection
-  - For credit issues: go to the [DUIX recharge page](https://duix.com/dashboard/duix-cli-skills/overview) to recharge
+  - For credit issues: go to the [DUIX recharge page](https://www.duix.com/dashboard/duix-cli-skills/pricing) to recharge
 
 To retry, confirm the source assets and submit again.
 ```

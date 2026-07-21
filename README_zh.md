@@ -178,10 +178,10 @@ A: 检查环境变量是否生效，或重新配置本地配置文件。
 如果还没有 Key，前往 [API Key 管理页面](https://www.duix.com/dashboard/duix-cli-skills/keys) 获取。
 
 **Q: 积分消耗如何计算？**  
-A: 通过 Skills 发起的调用，将使用所登录账户的积分。具体计费标准请参考 [Pring 价格页面](https://www.duix.com/pricing)。
+A: 通过 Skills 发起的调用，将使用所登录账户的积分。具体计费标准请参考 [Pricing 价格页面](https://www.duix.com/dashboard/duix-cli-skills/pricing)。
 
 **Q: 积分不足怎么办？**  
-A: 前往 [Pricing 价格页面](https://www.duix.com/pricing) 查看套餐并充值。
+A: 前往 [Pricing 价格页面](https://www.duix.com/dashboard/duix-cli-skills/pricing) 查看套餐并充值。
 
 **Q: 生成任务很慢怎么办？**  
 A: 视频生成本身可能需要较长时间。短视频任务通常也可能等待十几分钟到更久，高峰期会更慢。建议耐心等待，或避开高峰时段重试。
