@@ -117,6 +117,8 @@ Agent 执行前需确认可用认证：
 
 直接复制给 Agent 即可使用，必须提供视频文件路径和音频文件路径（请替换为你本地的实际文件路径）：
 
+* 用 duix-avatar-video-generation 读取 examples/demo_assets 下的 demo_avatar.mp4 人物视频与 demo_voice.wav 配音音频，合成对口型口播视频。
+
 * 用 duix-avatar-video-generation 把视频 C:\Users\YourName\Videos\person.mp4 和音频 C:\Users\YourName\Audio\voice.wav 合成口播视频。
     
 * 我想做一条产品介绍视频，让 https://duix.com/video/spokesperson.mp4 里的人物按 https://duix.com/audio\intro.mp3 这段音频说话。

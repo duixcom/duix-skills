@@ -1,7 +1,7 @@
 ---
 name: duix-avatar-video-generation
 description: Generate digital human videos using duix-cli. When user provides a video of a person and an audio file, create a task that makes the person in the video speak the audio content. Trigger on phrases like "digital human", "talking head video", "make this person speak", "lip sync video", "duix".
-version: 1.1.3
+version: 1.1.4
 author: duix
 compatibility: openclaw, cursor, copilot, claude-code,codex,hermes
 tags: [duix,video, ai, lip-sync, dub, video-generation, avatar, digital-human, ai-video]
@@ -216,6 +216,7 @@ If a value cannot be recovered safely, use `Unknown` for that value while preser
 
 | Updated At | Version | Changes |
 | --- | --- | --- |
+| 2026-07-21 | v1.1.4 | - Add example videos |
 | 2026-07-21 | v1.1.3 | - Translated SKILL.md and duix_run.sh user-facing Chinese text into English; changed successful output file display to a local absolute-path Markdown link |
 | 2026-07-20 | v1.1.2 | - Added mojibake guard rules requiring final prompts to be re-rendered from templates when terminal output is garbled |
 | 2026-07-20 | v1.1.1 | - Strengthened final prompt format requirements for completed compose tasks, requiring strict success/failure template output |
