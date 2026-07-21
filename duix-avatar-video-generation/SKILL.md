@@ -195,7 +195,7 @@ If final credit lookup fails after a successful compose task, keep the success t
 ## Encoding and Mojibake Guard
 
 The final user-facing message MUST be rendered by the agent from the strict templates above, not copied blindly from terminal output if the terminal output is garbled.
-If stdout contains mojibake such as `鉁旓笍`, `鍙ｆ挱`, `绉垎`, `瑙嗛`, or similarly broken Chinese, treat it as an encoding artifact.
+If stdout contains broken or unreadable Chinese caused by character encoding issues, treat it as an encoding artifact.
 Recover the actual values from the script output, log file, task JSON, paths, and credit check JSON, then re-render the final message in normal Chinese using the required success or failure template.
 Never show garbled Chinese to the user.
 If a value cannot be recovered safely, use `未知` for that value while preserving the required template format.
