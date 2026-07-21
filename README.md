@@ -155,13 +155,13 @@ A: No. You can complete installation, configuration, and usage directly through 
 A: Confirm that `duix-avatar-video-generation/SKILL.md` and `duix-avatar-video-generation/scripts/duix_run.sh` are under the skills directory, and that the agent has reloaded skills.
 
 **Q: It says "DUIX_API_KEY not found". What should I do?**  
-A: Check whether the environment variable has taken effect, or reconfigure the local config file. If you do not have a key yet, get one from the [API Key management page](https://www.duix.com/dashboard/setting/api-key).
+A: Check whether the environment variable has taken effect, or reconfigure the local config file. If you do not have a key yet, get one from the [API Key management page](https://www.duix.com/dashboard/duix-cli-skills/keys).
 
 **Q: How are credits calculated?**  
-A: Calls initiated through Skills use the credits of the logged-in account. For specific billing standards, see the [Pricing page](https://www.duix.com/pricing).
+A: Calls initiated through Skills use the credits of the logged-in account. For specific billing standards, see the [Pricing page](https://www.duix.com/dashboard/duix-cli-skills/pricing).
 
 **Q: What if I do not have enough credits?**  
-A: Visit the [Pricing page](https://www.duix.com/pricing) to view plans and recharge.
+A: Visit the [Pricing page](https://www.duix.com/dashboard/duix-cli-skills/pricing) to view plans and recharge.
 
 **Q: What if the generation task is slow?**  
 A: Video generation can take a long time. Even short-video tasks may wait for more than ten minutes or longer, and peak periods can be slower. Wait patiently or retry outside peak hours.

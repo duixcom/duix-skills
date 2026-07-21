@@ -175,7 +175,7 @@ A: 确认 `duix-avatar-video-generation/SKILL.md` 和 `duix-avatar-video-gener
 
 **Q: 提示 "DUIX\_API\_KEY not found"？**  
 A: 检查环境变量是否生效，或重新配置本地配置文件。  
-如果还没有 Key，前往 [API Key 管理页面](https://www.duix.com/dashboard/setting/api-key) 获取。
+如果还没有 Key，前往 [API Key 管理页面](https://www.duix.com/dashboard/duix-cli-skills/keys) 获取。
 
 **Q: 积分消耗如何计算？**  
 A: 通过 Skills 发起的调用，将使用所登录账户的积分。具体计费标准请参考 [Pring 价格页面](https://www.duix.com/pricing)。

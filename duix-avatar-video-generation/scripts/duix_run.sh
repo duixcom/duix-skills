@@ -187,7 +187,7 @@ confirm_credits() {
     if [ "$can_continue" != "true" ]; then
         printf '⚠️ Insufficient Credits
 This task is estimated to require %s credits. Current account balance: %s credits.
-Please go to the DUIX recharge page (https://www.duix.com/dashboard/duix-cli-skills/overview), recharge, and try again.
+Please go to the DUIX recharge page (https://www.duix.com/dashboard/duix-cli-skills/pricing), recharge, and try again.
 ' "${required_credits:-Unknown}" "${credits_left:-Unknown}"
         exit 1
     fi

@@ -59,7 +59,7 @@ duix-cli compose check -a input.wav
 ```text
 ⚠️ Insufficient Credits
 This task is estimated to require XX credits. Current account balance: XX credits.
-Please go to the DUIX recharge page (https://www.duix.com/dashboard/duix-cli-skills/overview), recharge, and try again.
+Please go to the DUIX recharge page (https://www.duix.com/dashboard/duix-cli-skills/pricing), recharge, and try again.
 ```
 
 - If `data.canContinue` is `true`, ask the user to confirm explicitly:
