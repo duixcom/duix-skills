@@ -201,6 +201,18 @@ try {
         | sed -nE "s/.*\"$field\"[[:space:]]*:[[:space:]]*(\{[^}]*\}).*/\1/p" \
         | head -1
 }
+sanitize_display_text() {
+    local text="$1"
+
+    printf '%s' "$text" \
+        | sed -E 's/\xE9\x88\xBF\xE7\x8B\x85\xE7\xAC\x8D/\&#9888;\&#65039;/g; s/^[[:space:]]+//; s/[[:space:]]+$//'
+}
+strip_warning_prefix() {
+    local text="$1"
+
+    sanitize_display_text "$text" \
+        | sed -E 's/^(&#9888;)?(&#65039;)?[[:space:]]*//; s/^\xE2\x9A\xA0\xEF\xB8\x8F[[:space:]]*//'
+}
 failure_reason_from_json() {
     local json="$1"
     local reason
@@ -217,9 +229,9 @@ failure_reason_from_json() {
     fi
 
     if [ -n "$reason" ]; then
-        echo "$reason"
+        sanitize_display_text "$reason"
     elif [ -n "$json" ]; then
-        printf '%s\n' "$json" | head -1
+        sanitize_display_text "$(printf '%s\n' "$json" | head -1)"
     else
         echo "Unknown reason"
     fi
@@ -234,8 +246,8 @@ run_compose_check() {
         failure_reason=$(failure_reason_from_json "$check_result")
         log "ERROR: Failed to run compose pre-check - $failure_reason"
         log_json "$label COMPOSE CHECK ERROR" "$check_result"
-        echo -e "${RED}Error: Failed to run compose pre-check${NC}"
-        echo "Reason: $failure_reason"
+        echo -e "${RED}Error: Failed to run compose pre-check${NC}" >&2
+        echo "Reason: $failure_reason" >&2
         exit 1
     fi
 
@@ -317,7 +329,7 @@ print_compose_check_rejection() {
     local check_text
     local check_text_lower
 
-    reason=$(json_value "$check_result" "reason")
+    reason=$(sanitize_display_text "$(json_value "$check_result" "reason")")
     path=$(json_value "$check_result" "path")
     supported_input=$(json_value "$check_result" "supportedInput")
     requirement=$(json_value "$check_result" "requirement")
@@ -385,13 +397,12 @@ print_compose_check_rejection() {
             printf '%s\n' 'For more format requirements, see: https://github.com/duixcom/duix-skills'
             ;;
         *)
-            title="${reason:-Compose check failed}"
+            title=$(strip_warning_prefix "${reason:-Compose check failed}")
             case "$(printf '%s' "$title" | tr '[:upper:]' '[:lower:]')" in
                 *input*) title="Unsupported input" ;;
                 *size*) title="File size exceeds limit" ;;
                 *resolution*) title="Unsupported video resolution" ;;
                 *ratio*) title="Unsupported video aspect ratio" ;;
-                *credit*) title="Insufficient credits" ;;
                 *ffprobe*|*parse*) title="Media parsing failed" ;;
             esac
 
@@ -527,16 +538,16 @@ print_success_result() {
     local video_duration
     local output_link
 
-    if credit_result=$(duix-cli compose check --video "$VIDEO" --audio "$AUDIO"); then
-        log_json "FINAL CREDIT CHECK RESPONSE" "$credit_result"
-        credits_left=$(json_value "$credit_result" "creditsLeft")
-        required_credits=$(json_value "$credit_result" "requiredCredits")
-        video_duration=$(json_value "$credit_result" "audioDurationSeconds")
-    else
-        log "WARNING: Failed to check final credits"
-        log_json "FINAL CREDIT CHECK ERROR" "$credit_result"
-    fi
+    required_credits=$(json_value "$CREDIT_CHECK_RESULT" "requiredCredits")
+    video_duration=$(json_value "$CREDIT_CHECK_RESULT" "audioDurationSeconds")
 
+    if credit_result=$(duix-cli compose credits); then
+        log_json "FINAL CREDITS RESPONSE" "$credit_result"
+        credits_left=$(json_value "$credit_result" "creditsLeft")
+    else
+        log "WARNING: Failed to query final credits"
+        log_json "FINAL CREDITS ERROR" "$credit_result"
+    fi
     output_link=$(markdown_file_link "$output_file")
 
     echo ""
@@ -564,6 +575,7 @@ print_failure_result() {
         reason="Unknown reason"
     fi
 
+    reason=$(sanitize_display_text "$reason")
     echo ""
     echo "Talking-head Video Generation Failed"
     echo ""

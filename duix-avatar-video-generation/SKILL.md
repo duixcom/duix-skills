@@ -54,7 +54,7 @@ duix-cli compose check --video input.mp4 --audio input.wav
 ```
 - Run this before creating a compose task. `compose create` must not be called until this pre-check passes.
 - Read `data.canContinue` from the returned JSON. Do not use top-level `ok` as the business decision.
-- If `data.canContinue` is not exactly `true`, stop the task without creating a compose task and show one of these strict English templates exactly, preserving every line break. If `data.detail` exists, do not print it as a JSON string; parse its fields and place them into the template lines below. For unsupported video format, read `SUPPORTED_VIDEO_FORMATS` from `data.detail.supportedFormats`.
+- If `data.canContinue` is not exactly `true`, stop the task without creating a compose task and show one of these strict English templates exactly, preserving every line break. If `data.detail` exists, do not print it as a JSON string; parse its fields and place them into the template lines below. The script may emit `&#9888;&#65039;` to avoid terminal mojibake; the final user-facing message must render that as the warning emoji `⚠️` (U+26A0 U+FE0F). For unsupported video format, read `SUPPORTED_VIDEO_FORMATS` from `data.detail.supportedFormats`.
 
 Non-audio-duration rejection template:
 
@@ -124,6 +124,7 @@ Script handles:
 - Explicit user confirmation before credits are consumed
 - Task creation and polling
 - Download on completion
+- Final latest-credit lookup with `duix-cli compose credits`; read remaining credits from `data.creditsLeft`
 - Final success/failure messages with task details, output path, and credit status
 - Debug logging to output_dir
 
@@ -144,6 +145,9 @@ duix-cli compose status ls
 
 # Download result
 duix-cli compose download <task_id>
+
+# Query latest remaining credits after successful completion
+duix-cli compose credits
 ```
 
 ## Parameters
@@ -157,7 +161,7 @@ duix-cli compose download <task_id>
 - File format: MP4
 - File name: `{remote_id}-{task_id}.mp4`
 - Logs: `duix_run_<timestamp>.log` in output directory
-- On success, show the final task detail block including task ID, success status, video path, audio path, output file, video duration, consumed credits, and remaining credits.
+- On success, show the final task detail block including task ID, success status, video path, audio path, output file, video duration, consumed credits, and remaining credits. Query the latest remaining credits with `duix-cli compose credits` and read `data.creditsLeft`; do not use `duix-cli compose check -a` or another media pre-check for the final balance lookup.
 - On success, the output file MUST be shown as a local absolute path. Prefer a Markdown link whose visible label is the local absolute path and whose target opens the video file.
 - On failure, show the final failure block including refunded credit status, the returned failure reason or `Unknown reason`, and retry suggestions.
 
@@ -207,14 +211,14 @@ To retry, confirm the source assets and submit again.
 ```
 
 If the compose task returns a failure reason, use it as `FAILURE_REASON`; otherwise use `Unknown reason`.
-If final credit lookup fails after a successful compose task, keep the success template and use `Unknown` for the missing credit or duration fields rather than adding explanatory text after the template.
+If final credit lookup with `duix-cli compose credits` fails after a successful compose task, keep the success template and use `Unknown` for the missing remaining-credit field rather than adding explanatory text after the template.
 
 ## Encoding and Mojibake Guard
 
 The final user-facing message MUST be rendered by the agent from the strict templates above, not copied blindly from terminal output if the terminal output is garbled.
 If stdout contains broken or unreadable text caused by character encoding issues, treat it as an encoding artifact.
 Recover the actual values from the script output, log file, task JSON, paths, and credit check JSON, then re-render the final message in normal English using the required success or failure template.
-Never show garbled text to the user. If script output starts with the Markdown/HTML entity `&#9888;&#65039;`, render it as the warning emoji `⚠️` in the final user-facing message.
+Never show garbled text to the user. If script output contains the Markdown/HTML entity `&#9888;&#65039;`, render it as the warning emoji `⚠️` in the final user-facing message. If terminal output contains a mojibake warning prefix for the warning emoji, treat it as an encoding artifact and render it as `⚠️`.
 If a value cannot be recovered safely, use `Unknown` for that value while preserving the required template format.
 
 ## Pitfalls
@@ -228,6 +232,7 @@ If a value cannot be recovered safely, use `Unknown` for that value while preser
 
 | Updated At | Version | Changes |
 | --- | --- | --- |
+| 2026-07-23 | v1.2.1 | - Use `duix-cli compose credits` for final remaining-credit lookup after successful compose tasks; read `data.creditsLeft` from the response |
 | 2026-07-22 | v1.2.0 | - Update compose pre-check to use both video and audio paths; gate task creation only on data.canContinue === true and surface reason/detail on rejection |
 | 2026-07-21 | v1.1.5 | - Force duix-cli version checking against the official npm registry on every skill run and prompt users to update when a newer version is available |
 | 2026-07-21 | v1.1.4 | - Add example videos |
