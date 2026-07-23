@@ -143,14 +143,25 @@ Agent 执行前需确认可用认证：
 
 ## 使用要求
 
-*   [ ] 可用的人物视频720p-4k（建议正脸、清晰、无遮挡）
+### 输入素材要求
+
+| 项目 | 要求 |
+| --- | --- |
+| 视频格式 | MP4、MOV、WEBM |
+| 视频大小 | 不超过 1GB |
+| 视频分辨率 | 720P 至 4K，包含 720P 和 4K |
+| 视频比例 | 16:9 或 9:16 |
+| 视频主体 | 视频必须包含且仅包含 1 张人脸，并且人脸需正脸、清晰、无遮挡 |
+| 音频格式 | MP3、WAV、M4A、AAC、FLAC |
+| 音频大小 | 不超过 1GB |
+| 音频内容 | 音频必须包含有效人声，不支持纯音乐、无声或噪音过大的音频 |
+| 套餐时长限制 | 音频时长必须小于或等于当前套餐允许的最长时长；超限时，前置检查会返回套餐名称和套餐时长限制 |
+
+*   [ ] 输入视频和音频满足上方格式、大小、分辨率、比例、人脸、语音和套餐时长要求
     
-*   [ ] 可用的音频文件（可正常播放）
+*   [ ] 支持 skills 的 Agent 环境（如 Cursor / Codex / OpenClaw 等）
     
-*   [ ] 支持 skills 的 Agent 环境（如 Cursor / Codex / OpenClaw 等）
-    
-*   [ ] 已配置 DUIX_API_KEY （[获取方式](https://www.duix.com/dashboard/duix-cli-skills/keys)）
-    
+*   [ ] 已配置 DUIX_API_KEY （[获取方式](https://www.duix.com/dashboard/duix-cli-skills/keys)）
 
 ---
 

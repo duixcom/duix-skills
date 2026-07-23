@@ -131,8 +131,21 @@ Replace `https://duix.com/video/spokesperson.mp4` in the examples with your actu
 
 ## Requirements
 
-* [ ] Available person video, 720p-4k, preferably front-facing, clear, and unobstructed
-* [ ] Available audio file that can be played normally
+### Input Asset Requirements
+
+| Item | Requirement |
+| --- | --- |
+| Video format | MP4, MOV, WEBM |
+| Video size | Up to 1 GB |
+| Video resolution | 720P to 4K, inclusive |
+| Video aspect ratio | 16:9 or 9:16 |
+| Video subject | The video must contain exactly one human face. The face must be front-facing, clear, and unobstructed. |
+| Audio format | MP3, WAV, M4A, AAC, FLAC |
+| Audio size | Up to 1 GB |
+| Audio content | The audio must contain valid human speech. Pure music, silence, or audio with excessive noise is not supported. |
+| Plan duration limit | The audio duration must be less than or equal to the maximum duration allowed by your current plan. The pre-check returns your plan name and duration limit when the audio exceeds the limit. |
+
+* [ ] Input video and audio meet the format, size, resolution, ratio, face, speech, and plan-duration requirements above
 * [ ] Agent environment that supports skills, such as Cursor, Codex, or OpenClaw
 * [ ] `DUIX_API_KEY` configured ([how to get one](https://www.duix.com/dashboard/duix-cli-skills/keys))
 
