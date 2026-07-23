@@ -62,7 +62,7 @@ set_config() {
         read -p "> " key
         
         if [ -z "$key" ]; then
-            echo -e "${RED}Error: API Key cannot be empty${NC}"
+            print_warning_title "Error: API Key cannot be empty"
             exit 1
         fi
         
@@ -204,14 +204,30 @@ try {
 sanitize_display_text() {
     local text="$1"
 
-    printf '%s' "$text" \
-        | sed -E 's/\xE9\x88\xBF\xE7\x8B\x85\xE7\xAC\x8D/\&#9888;\&#65039;/g; s/^[[:space:]]+//; s/[[:space:]]+$//'
+    if command -v sed >/dev/null 2>&1; then
+        printf '%s' "$text" \
+            | sed -E 's/\xE9\x88\xBF\xE7\x8B\x85\xE7\xAC\x8D/\&#9888;\&#65039;/g; s/^[[:space:]]+//; s/[[:space:]]+$//'
+    else
+        printf '%s' "$text"
+    fi
 }
-strip_warning_prefix() {
-    local text="$1"
 
-    sanitize_display_text "$text" \
-        | sed -E 's/^(&#9888;)?(&#65039;)?[[:space:]]*//; s/^\xE2\x9A\xA0\xEF\xB8\x8F[[:space:]]*//'
+strip_warning_prefix() {
+    local text
+
+    text=$(sanitize_display_text "$1")
+    case "$text" in
+        '&#9888;&#65039;'*) text="${text#'&#9888;&#65039;'}" ;;
+    esac
+    while [ "${text# }" != "$text" ]; do
+        text="${text# }"
+    done
+
+    if command -v sed >/dev/null 2>&1; then
+        printf '%s' "$text" | sed -E 's/^\xE2\x9A\xA0\xEF\xB8\x8F[[:space:]]*//; s/^[[:space:]]+//; s/[[:space:]]+$//'
+    else
+        printf '%s' "$text"
+    fi
 }
 failure_reason_from_json() {
     local json="$1"
@@ -246,8 +262,8 @@ run_compose_check() {
         failure_reason=$(failure_reason_from_json "$check_result")
         log "ERROR: Failed to run compose pre-check - $failure_reason"
         log_json "$label COMPOSE CHECK ERROR" "$check_result"
-        echo -e "${RED}Error: Failed to run compose pre-check${NC}" >&2
-        echo "Reason: $failure_reason" >&2
+        print_warning_title "Error: Failed to run compose pre-check" >&2
+        echo "Reason: $(strip_warning_prefix "$failure_reason")" >&2
         exit 1
     fi
 
@@ -289,17 +305,17 @@ print_if_present() {
     local value="$2"
 
     if [ -n "$value" ]; then
-        printf '%s: %s\n' "$label" "$value"
+        printf '%s: %s\n' "$label" "$(strip_warning_prefix "$value")"
     fi
 }
 
 print_warning_title() {
     local title="$1"
 
+    title=$(strip_warning_prefix "$title")
     # Use an HTML entity so Markdown renderers show the emoji without UTF-8 mojibake.
     printf '&#9888;&#65039; %s\n' "$title"
 }
-
 print_compose_check_rejection() {
     local check_result="$1"
     local reason
@@ -447,17 +463,16 @@ confirm_compose_check() {
         exit 1
     fi
 
-    printf 'Credit Confirmation
-This talking-head video generation is estimated to consume %s credits. Current balance: %s credits.
-To confirm submission, reply "yes". To cancel, reply "no".
-' "${required_credits:-Unknown}" "${credits_left:-Unknown}"
+    printf '&#128161; Credit Confirmation\n'
+    printf 'This video generation is estimated to consume %s credits. Current balance: %s credits.\n' "${required_credits:-Unknown}" "${credits_left:-Unknown}"
+    printf '%s\n' 'To confirm submission, reply "yes". To cancel, reply "no".'
     read -r answer
 
     case "$(printf '%s' "$answer" | tr '[:upper:]' '[:lower:]')" in
         yes|y) ;;
         *)
             log "User cancelled after compose pre-check confirmation"
-            echo "The talking-head video generation task has been cancelled."
+            echo "The video generation task has been cancelled."
             exit 0
             ;;
     esac
@@ -550,8 +565,7 @@ print_success_result() {
     fi
     output_link=$(markdown_file_link "$output_file")
 
-    echo ""
-    echo "Talking-head Video Generated Successfully"
+    echo "&#9989; Video Generated Successfully"
     echo ""
     echo "Task Details:"
     echo "  - Task ID: $TASK_ID"
@@ -575,9 +589,8 @@ print_failure_result() {
         reason="Unknown reason"
     fi
 
-    reason=$(sanitize_display_text "$reason")
-    echo ""
-    echo "Talking-head Video Generation Failed"
+    reason=$(strip_warning_prefix "$reason")
+    echo "&#10060; Video Generation Failed"
     echo ""
     echo "Credit Status: credits have been refunded"
     echo ""
@@ -656,17 +669,17 @@ case "$MAX_POLLS" in ""|*[!0-9]*) MAX_POLLS=0 ;; esac
 
 # Validate inputs
 if [ ! -f "$VIDEO" ]; then
-    echo -e "${RED}Error: Video file '$VIDEO' not found${NC}"
+    print_warning_title "Error: Video file '$VIDEO' not found"
     exit 1
 fi
 
 if [ ! -f "$AUDIO" ]; then
-    echo -e "${RED}Error: Audio file '$AUDIO' not found${NC}"
+    print_warning_title "Error: Audio file '$AUDIO' not found"
     exit 1
 fi
 
 if ! command -v duix-cli &> /dev/null; then
-    echo -e "${RED}Error: duix-cli not found. Install: $NPM_INSTALL_CMD${NC}"
+    print_warning_title "Error: duix-cli not found. Install: $NPM_INSTALL_CMD"
     exit 1
 fi
 
@@ -676,7 +689,7 @@ check_duix_cli_update
 ensure_api_key
 
 if ! mkdir -p "$OUTPUT_DIR"; then
-    echo -e "${RED}Error: Failed to create output directory: $OUTPUT_DIR${NC}"
+    print_warning_title "Error: Failed to create output directory: $OUTPUT_DIR"
     exit 1
 fi
 

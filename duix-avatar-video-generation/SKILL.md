@@ -9,10 +9,10 @@ tags: [duix,video, ai, lip-sync, dub, video-generation, avatar, digital-human, a
 
 # Duix Skills - duix-avatar-video-generation
 
-Generate talking-head videos using duix-cli. Takes a video of a person and an audio file, produces a video where the person appears to speak the audio content.
+Generate digital human videos using duix-cli. Takes a video of a person and an audio file, produces a video where the person appears to speak the audio content.
 
 ## When to Use  
-- User asks to generate a digital human / talking-head video  
+- User asks to generate a digital human video
 - User provides a video of a person and an audio file, wanting the person to speak the audio  
 - User mentions phrases like "digital human", "talking head video", "make this person speak", "lip sync video", "duix"  
 
@@ -54,12 +54,12 @@ duix-cli compose check --video input.mp4 --audio input.wav
 ```
 - Run this before creating a compose task. `compose create` must not be called until this pre-check passes.
 - Read `data.canContinue` from the returned JSON. Do not use top-level `ok` as the business decision.
-- If `data.canContinue` is not exactly `true`, stop the task without creating a compose task and show one of these strict English templates exactly, preserving every line break. If `data.detail` exists, do not print it as a JSON string; parse its fields and place them into the template lines below. The script may emit `&#9888;&#65039;` to avoid terminal mojibake; the final user-facing message must render that as the warning emoji `⚠️` (U+26A0 U+FE0F). For unsupported video format, read `SUPPORTED_VIDEO_FORMATS` from `data.detail.supportedFormats`.
+- If `data.canContinue` is not exactly `true`, stop the task without creating a compose task and show one of these strict English templates exactly, preserving every line break. If `data.detail` exists, do not print it as a JSON string; parse its fields and place them into the template lines below. Use `&#9888;&#65039;` in script/template text to avoid terminal mojibake; the final user-facing message must render it as the warning emoji `⚠️` (U+26A0 U+FE0F). For unsupported video format, read `SUPPORTED_VIDEO_FORMATS` from `data.detail.supportedFormats`.
 
 Non-audio-duration rejection template:
 
 ```text
-⚠️ Unsupported video format
+&#9888;&#65039; Unsupported video format
 Current video format: VIDEO_FORMAT
 Supported video formats: SUPPORTED_VIDEO_FORMATS
 For more format requirements, see: https://github.com/duixcom/duix-skills
@@ -68,21 +68,21 @@ For more format requirements, see: https://github.com/duixcom/duix-skills
 Audio-duration-limit rejection template:
 
 ```text
-⚠️ Audio duration exceeds plan limit
+&#9888;&#65039; Audio duration exceeds plan limit
 Current audio duration: AUDIO_DURATION_MINUTES minutes
 Your GRADE_NAME plan limit: DURATION_MINUTES minutes
 To synthesize longer videos, please upgrade your plan: https://newtest.duix.com/dashboard/duix-cli-skills/pricing
 ```
-- If `data.canContinue` is `true`, ask the user to confirm explicitly:
+- If `data.canContinue` is `true`, ask the user to confirm explicitly. The first line of the confirmation prompt must start with the light bulb emoji, using `&#128161;` in script output and rendering as `💡` in the final user-facing message:
 
 ```text
-Credit Confirmation
-This talking-head video generation is estimated to consume XX credits. Current balance: XX credits.
+&#128161; Credit Confirmation
+This video generation is estimated to consume XX credits. Current balance: XX credits.
 To confirm submission, reply "yes". To cancel, reply "no".
 ```
 
 Continue only when the user replies `yes`; stop when the user replies `no` or any other value.
-Use `data.requiredCredits` for the estimated credits and `data.creditsLeft` for the current balance when `data.canContinue === true`. If `data.canContinue !== true`, use the strict rejection template above. Derive `VIDEO_FORMAT` from `data.detail.currentFormat` or the input video extension; derive `SUPPORTED_VIDEO_FORMATS` from `data.detail.supportedFormats` or default to `MP4, MOV, WEBM`; derive `GRADE_NAME` from `data.detail.gradeName`; derive `DURATION_MINUTES` from `data.detail.durationMinutes` or `data.detail.durationLimitSeconds`; derive `AUDIO_DURATION_MINUTES` from `data.detail.audioDurationSeconds` or `data.audioDurationSeconds`. For other compose-check errors, follow the same English line-based style and print each field on its own line: title line prefixed with `⚠️`, then parse and show relevant `data.detail` fields such as `path`, `supportedInput`, `requirement`, `currentFormat`, `supportedFormats`, `sizeBytes`, `sizeGB`, `maxSizeGB`, `message`, `currentResolution`, `currentRatio`, `supportedRatios`, `supportedResolution`, `creditsLeft`, and `requiredCredits`. Never output raw `data.detail` JSON to the user. Do not collapse these templates into a single line; render each template line as a separate output line.
+Use `data.requiredCredits` for the estimated credits and `data.creditsLeft` for the current balance when `data.canContinue === true`. If `data.canContinue !== true`, use the strict rejection template above. Derive `VIDEO_FORMAT` from `data.detail.currentFormat` or the input video extension; derive `SUPPORTED_VIDEO_FORMATS` from `data.detail.supportedFormats` or default to `MP4, MOV, WEBM`; derive `GRADE_NAME` from `data.detail.gradeName`; derive `DURATION_MINUTES` from `data.detail.durationMinutes` or `data.detail.durationLimitSeconds`; derive `AUDIO_DURATION_MINUTES` from `data.detail.audioDurationSeconds` or `data.audioDurationSeconds`. For other compose-check errors, follow the same English line-based style and print each field on its own line: title line prefixed with `&#9888;&#65039;` in script/template text, then parse and show relevant `data.detail` fields such as `path`, `supportedInput`, `requirement`, `currentFormat`, `supportedFormats`, `sizeBytes`, `sizeGB`, `maxSizeGB`, `message`, `currentResolution`, `currentRatio`, `supportedRatios`, `supportedResolution`, `creditsLeft`, and `requiredCredits`. Never output raw `data.detail` JSON to the user. Every exception block must start its first line with the warning emoji `&#9888;&#65039;` in script/template text and render it as `⚠️` in the final user-facing message; if the source message already has the warning emoji, warning entity, or mojibake warning prefix, do not add a duplicate. Do not collapse these templates into a single line; render each template line as a separate output line.
 
 ### Step 1: Create Task
 ```bash
@@ -175,7 +175,7 @@ Only replace the placeholder values such as `TASK_ID`, `VIDEO_PATH`, `AUDIO_PATH
 Success template:
 
 ```text
-Talking-head Video Generated Successfully
+&#9989; Video Generated Successfully
 
 Task Details:
   - Task ID: TASK_ID
@@ -195,7 +195,7 @@ Credit Usage:
 Failure template:
 
 ```text
-Talking-head Video Generation Failed
+&#10060; Video Generation Failed
 
 Credit Status: credits have been refunded
 
@@ -218,7 +218,7 @@ If final credit lookup with `duix-cli compose credits` fails after a successful 
 The final user-facing message MUST be rendered by the agent from the strict templates above, not copied blindly from terminal output if the terminal output is garbled.
 If stdout contains broken or unreadable text caused by character encoding issues, treat it as an encoding artifact.
 Recover the actual values from the script output, log file, task JSON, paths, and credit check JSON, then re-render the final message in normal English using the required success or failure template.
-Never show garbled text to the user. If script output contains the Markdown/HTML entity `&#9888;&#65039;`, render it as the warning emoji `⚠️` in the final user-facing message. If terminal output contains a mojibake warning prefix for the warning emoji, treat it as an encoding artifact and render it as `⚠️`.
+Never show garbled text to the user. If script output contains the Markdown/HTML entity `&#9888;&#65039;`, render it as the warning emoji `⚠️` in the final user-facing message. If script output contains `&#128161;`, render it as `💡`; if it contains `&#9989;`, render it as `✅`; if it contains `&#10060;`, render it as `❌`. If terminal output contains a mojibake warning prefix for the warning emoji, treat it as an encoding artifact and render it as `⚠️`.
 If a value cannot be recovered safely, use `Unknown` for that value while preserving the required template format.
 
 ## Pitfalls
