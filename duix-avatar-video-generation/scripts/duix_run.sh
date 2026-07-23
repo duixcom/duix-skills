@@ -127,19 +127,80 @@ json_value() {
             | jq -r --arg field "$field" '.. | objects | select(has($field)) | .[$field] | select(. != null) | tostring' 2>/dev/null \
             | head -1)
         if [ -n "$value" ]; then
+            printf '%s\n' "$value"
+            return 0
+        fi
+    fi
+
+    if command -v node >/dev/null 2>&1; then
+        value=$(JSON_INPUT="$json" JSON_FIELD="$field" node -e '
+const input = process.env.JSON_INPUT || "";
+const field = process.env.JSON_FIELD || "";
+function find(value) {
+  if (value && typeof value === "object") {
+    if (Object.prototype.hasOwnProperty.call(value, field) && value[field] !== null && value[field] !== undefined) return value[field];
+    for (const key of Object.keys(value)) {
+      const found = find(value[key]);
+      if (found !== undefined) return found;
+    }
+  }
+  return undefined;
+}
+try {
+  const found = find(JSON.parse(input));
+  if (found !== undefined) process.stdout.write(String(found));
+} catch (_) {}
+' 2>/dev/null || true)
+        if [ -n "$value" ]; then
+            printf '%s\n' "$value"
+            return 0
+        fi
+    fi
+
+    printf '%s\n' "$json" \
+        | sed -nE "s/.*\"$field\"[[:space:]]*:[[:space:]]*(\"[^\"]*\"|true|false|null|-?[0-9]+(\.[0-9]+)?).*/\1/p" \
+        | head -1 \
+        | sed -E "s/^\"//; s/\"$//"
+}
+json_object() {
+    local json="$1"
+    local path="$2"
+    local field
+    local value
+
+    if command -v jq >/dev/null 2>&1; then
+        value=$(printf '%s' "$json" | jq -c "$path // empty" 2>/dev/null || true)
+        if [ -n "$value" ] && [ "$value" != "null" ]; then
             printf '%s
 ' "$value"
             return 0
         fi
     fi
 
-    printf '%s
-' "$json" \
-        | sed -nE "s/.*\"$field\"[[:space:]]*:[[:space:]]*(\"[^\"]*\"|true|false|null|-?[0-9]+(\.[0-9]+)?).*/\1/p" \
-        | head -1 \
-        | sed -E "s/^\"//; s/\"$//"
-}
+    if command -v node >/dev/null 2>&1; then
+        value=$(JSON_INPUT="$json" JSON_PATH="$path" node -e '
+const input = process.env.JSON_INPUT || "";
+const path = (process.env.JSON_PATH || "").replace(/^\./, "").split(".").filter(Boolean);
+try {
+  let value = JSON.parse(input);
+  for (const key of path) value = value == null ? undefined : value[key];
+  if (value !== undefined && value !== null) process.stdout.write(JSON.stringify(value));
+} catch (_) {}
+' 2>/dev/null || true)
+        if [ -n "$value" ] && [ "$value" != "null" ]; then
+            printf '%s
+' "$value"
+            return 0
+        fi
+    fi
 
+    field="${path##*.}"
+    printf '%s' "$json" \
+        | tr -d '
+' \
+        | sed -nE "s/.*\"$field\"[[:space:]]*:[[:space:]]*(\{[^}]*\}).*/\1/p" \
+        | head -1
+}
 failure_reason_from_json() {
     local json="$1"
     local reason
@@ -155,25 +216,211 @@ failure_reason_from_json() {
         reason=$(json_value "$json" "msg")
     fi
 
-    echo "${reason:-Unknown reason}"
+    if [ -n "$reason" ]; then
+        echo "$reason"
+    elif [ -n "$json" ]; then
+        printf '%s\n' "$json" | head -1
+    else
+        echo "Unknown reason"
+    fi
 }
 
-run_credit_check() {
+run_compose_check() {
     local label="$1"
     local check_result
+    local failure_reason
 
-    if ! check_result=$(duix-cli compose check -a "$AUDIO"); then
-        log "ERROR: Failed to check credits"
-        log_json "$label CREDIT CHECK ERROR" "$check_result"
-        echo -e "${RED}Error: Failed to check credits${NC}"
+    if ! check_result=$(duix-cli compose check --video "$VIDEO" --audio "$AUDIO" 2>&1); then
+        failure_reason=$(failure_reason_from_json "$check_result")
+        log "ERROR: Failed to run compose pre-check - $failure_reason"
+        log_json "$label COMPOSE CHECK ERROR" "$check_result"
+        echo -e "${RED}Error: Failed to run compose pre-check${NC}"
+        echo "Reason: $failure_reason"
         exit 1
     fi
 
-    log_json "$label CREDIT CHECK RESPONSE" "$check_result"
+    log_json "$label COMPOSE CHECK RESPONSE" "$check_result"
     echo "$check_result"
 }
 
-confirm_credits() {
+format_minutes_from_seconds() {
+    local seconds="$1"
+
+    case "$seconds" in
+        ''|*[!0-9.]* )
+            echo "Unknown"
+            return 0
+            ;;
+    esac
+
+    if command -v awk >/dev/null 2>&1; then
+        awk -v seconds="$seconds" 'BEGIN { minutes = seconds / 60; if (minutes == int(minutes)) printf "%d", minutes; else printf "%.2f", minutes }'
+    else
+        echo "$seconds"
+    fi
+}
+
+format_supported_formats() {
+    local formats="$1"
+
+    if [ -z "$formats" ]; then
+        echo "MP4, MOV, WEBM"
+        return 0
+    fi
+
+    printf '%s' "$formats" \
+        | sed -E 's/^\[//; s/\]$//; s/"//g; s/,/, /g; s/[[:space:]]+/ /g; s/^ //; s/ $//'
+}
+
+print_if_present() {
+    local label="$1"
+    local value="$2"
+
+    if [ -n "$value" ]; then
+        printf '%s: %s\n' "$label" "$value"
+    fi
+}
+
+print_warning_title() {
+    local title="$1"
+
+    # Use an HTML entity so Markdown renderers show the emoji without UTF-8 mojibake.
+    printf '&#9888;&#65039; %s\n' "$title"
+}
+
+print_compose_check_rejection() {
+    local check_result="$1"
+    local reason
+    local path
+    local supported_input
+    local requirement
+    local grade_name
+    local duration_minutes
+    local duration_limit_seconds
+    local audio_duration_seconds
+    local audio_duration_minutes
+    local video_format
+    local video_format_from_detail
+    local supported_formats
+    local supported_formats_from_detail
+    local size_bytes
+    local size_gb
+    local max_size_gb
+    local message
+    local current_resolution
+    local current_ratio
+    local supported_ratios
+    local supported_resolution
+    local credits_left
+    local required_credits
+    local title
+    local check_text
+    local check_text_lower
+
+    reason=$(json_value "$check_result" "reason")
+    path=$(json_value "$check_result" "path")
+    supported_input=$(json_value "$check_result" "supportedInput")
+    requirement=$(json_value "$check_result" "requirement")
+    grade_name=$(json_value "$check_result" "gradeName")
+    duration_minutes=$(json_value "$check_result" "durationMinutes")
+    duration_limit_seconds=$(json_value "$check_result" "durationLimitSeconds")
+    audio_duration_minutes=$(json_value "$check_result" "audioDurationMinutes")
+    audio_duration_seconds=$(json_value "$check_result" "audioDurationSeconds")
+    if [ -z "$audio_duration_minutes" ]; then
+        audio_duration_minutes=$(format_minutes_from_seconds "$audio_duration_seconds")
+    fi
+    if [ -z "$duration_minutes" ]; then
+        duration_minutes=$(format_minutes_from_seconds "$duration_limit_seconds")
+    fi
+
+    video_format_from_detail=$(json_value "$check_result" "currentFormat")
+    if [ -z "$video_format_from_detail" ]; then
+        video_format_from_detail=$(json_value "$check_result" "currentVideoFormat")
+    fi
+    if [ -z "$video_format_from_detail" ]; then
+        video_format_from_detail=$(json_value "$check_result" "videoFormat")
+    fi
+    if [ -z "$video_format_from_detail" ]; then
+        video_format_from_detail=$(json_value "$check_result" "format")
+    fi
+    video_format="$video_format_from_detail"
+    if [ -z "$video_format" ]; then
+        video_format="${VIDEO##*.}"
+        if [ "$video_format" = "$VIDEO" ] || [ -z "$video_format" ]; then
+            video_format="Unknown"
+        fi
+    fi
+    video_format=$(printf '%s' "$video_format" | tr '[:lower:]' '[:upper:]')
+
+    supported_formats_from_detail=$(json_value "$check_result" "supportedVideoFormats")
+    if [ -z "$supported_formats_from_detail" ]; then
+        supported_formats_from_detail=$(json_value "$check_result" "supportedFormats")
+    fi
+    supported_formats=$(format_supported_formats "$supported_formats_from_detail")
+    size_bytes=$(json_value "$check_result" "sizeBytes")
+    size_gb=$(json_value "$check_result" "sizeGB")
+    max_size_gb=$(json_value "$check_result" "maxSizeGB")
+    message=$(json_value "$check_result" "message")
+    current_resolution=$(json_value "$check_result" "currentResolution")
+    current_ratio=$(json_value "$check_result" "currentRatio")
+    supported_ratios=$(json_value "$check_result" "supportedRatios")
+    supported_resolution=$(json_value "$check_result" "supportedResolution")
+    credits_left=$(json_value "$check_result" "creditsLeft")
+    required_credits=$(json_value "$check_result" "requiredCredits")
+
+    check_text="$reason $check_result"
+    check_text_lower=$(printf '%s' "$check_text" | tr '[:upper:]' '[:lower:]')
+
+    case "$check_text_lower" in
+        *audio*duration*|*audio_duration*|*audiodurationseconds*|*audiodurationminutes*|*durationlimitseconds*)
+            print_warning_title 'Audio duration exceeds plan limit'
+            printf 'Current audio duration: %s minutes\n' "${audio_duration_minutes:-Unknown}"
+            printf 'Your %s plan limit: %s minutes\n' "${grade_name:-Unknown}" "${duration_minutes:-Unknown}"
+            printf '%s\n' 'To synthesize longer videos, please upgrade your plan: https://newtest.duix.com/dashboard/duix-cli-skills/pricing'
+            ;;
+        *unsupported*format*|*supportedformats*|*currentformat*)
+            print_warning_title 'Unsupported video format'
+            printf 'Current video format: %s\n' "$video_format"
+            printf 'Supported video formats: %s\n' "$supported_formats"
+            printf '%s\n' 'For more format requirements, see: https://github.com/duixcom/duix-skills'
+            ;;
+        *)
+            title="${reason:-Compose check failed}"
+            case "$(printf '%s' "$title" | tr '[:upper:]' '[:lower:]')" in
+                *input*) title="Unsupported input" ;;
+                *size*) title="File size exceeds limit" ;;
+                *resolution*) title="Unsupported video resolution" ;;
+                *ratio*) title="Unsupported video aspect ratio" ;;
+                *credit*) title="Insufficient credits" ;;
+                *ffprobe*|*parse*) title="Media parsing failed" ;;
+            esac
+
+            print_warning_title "$title"
+            print_if_present "Path" "$path"
+            print_if_present "Supported input" "$supported_input"
+            print_if_present "Requirement" "$requirement"
+            print_if_present "Current format" "$video_format_from_detail"
+            if [ -n "$supported_formats_from_detail" ]; then
+                print_if_present "Supported formats" "$supported_formats"
+            fi
+            if [ -n "$size_gb" ]; then
+                print_if_present "Current size" "$size_gb GB"
+            fi
+            print_if_present "Current size bytes" "$size_bytes"
+            if [ -n "$max_size_gb" ]; then
+                print_if_present "Max size" "$max_size_gb GB"
+            fi
+            print_if_present "Message" "$message"
+            print_if_present "Current resolution" "$current_resolution"
+            print_if_present "Current ratio" "$current_ratio"
+            print_if_present "Supported ratios" "$supported_ratios"
+            print_if_present "Supported resolution" "$supported_resolution"
+            print_if_present "Credits left" "$credits_left"
+            print_if_present "Required credits" "$required_credits"
+            ;;
+    esac
+}
+confirm_compose_check() {
     local check_result="$1"
     local can_continue
     local required_credits
@@ -185,29 +432,25 @@ confirm_credits() {
     credits_left=$(json_value "$check_result" "creditsLeft")
 
     if [ "$can_continue" != "true" ]; then
-        printf '⚠️ Insufficient Credits
-This task is estimated to require %s credits. Current account balance: %s credits.
-Please go to the DUIX recharge page (https://www.duix.com/dashboard/duix-cli-skills/pricing), recharge, and try again.
-' "${required_credits:-Unknown}" "${credits_left:-Unknown}"
+        print_compose_check_rejection "$check_result"
         exit 1
     fi
 
-    printf '💡 Credit Confirmation
+    printf 'Credit Confirmation
 This talking-head video generation is estimated to consume %s credits. Current balance: %s credits.
 To confirm submission, reply "yes". To cancel, reply "no".
 ' "${required_credits:-Unknown}" "${credits_left:-Unknown}"
     read -r answer
 
     case "$(printf '%s' "$answer" | tr '[:upper:]' '[:lower:]')" in
-        yes|y|是) ;;
+        yes|y) ;;
         *)
-            log "User cancelled after credit confirmation"
+            log "User cancelled after compose pre-check confirmation"
             echo "The talking-head video generation task has been cancelled."
             exit 0
             ;;
     esac
 }
-
 absolute_path() {
     local input="$1"
 
@@ -284,7 +527,7 @@ print_success_result() {
     local video_duration
     local output_link
 
-    if credit_result=$(duix-cli compose check -a "$AUDIO"); then
+    if credit_result=$(duix-cli compose check --video "$VIDEO" --audio "$AUDIO"); then
         log_json "FINAL CREDIT CHECK RESPONSE" "$credit_result"
         credits_left=$(json_value "$credit_result" "creditsLeft")
         required_credits=$(json_value "$credit_result" "requiredCredits")
@@ -297,7 +540,7 @@ print_success_result() {
     output_link=$(markdown_file_link "$output_file")
 
     echo ""
-    echo "✔️ Talking-head Video Generated Successfully"
+    echo "Talking-head Video Generated Successfully"
     echo ""
     echo "Task Details:"
     echo "  - Task ID: $TASK_ID"
@@ -322,7 +565,7 @@ print_failure_result() {
     fi
 
     echo ""
-    echo "❌ Talking-head Video Generation Failed"
+    echo "Talking-head Video Generation Failed"
     echo ""
     echo "Credit Status: credits have been refunded"
     echo ""
@@ -442,9 +685,9 @@ echo -e "${CYAN}Log file: $LOG_FILE${NC}"
 echo ""
 
 # Credit check and user confirmation
-log "[STEP 0] Checking credits..."
-CREDIT_CHECK_RESULT=$(run_credit_check "INITIAL")
-confirm_credits "$CREDIT_CHECK_RESULT"
+log "[STEP 0] Running compose pre-check..."
+CREDIT_CHECK_RESULT=$(run_compose_check "INITIAL")
+confirm_compose_check "$CREDIT_CHECK_RESULT"
 
 # Step 1: Create task
 log "[STEP 1] Creating task..."
