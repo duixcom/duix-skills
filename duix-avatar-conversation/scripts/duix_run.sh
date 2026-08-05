@@ -1,13 +1,27 @@
 #!/usr/bin/env bash
 # Digital Human Conversation - Duix Run Script
+# Aligns with SKILL.md hard gates:
+#   create → need_select (stop) → create → need_confirm (stop) → create --yes → status
+#
 # Usage:
 #   ./duix_run.sh --config
 #   ./duix_run.sh check
-#   ./duix_run.sh create --coverImageUrl <path|url> [--ttsName ...] [options]
-#   ./duix_run.sh create --coverImage <base64> [--ttsName ...] [options]
-#   ./duix_run.sh create --conversationId <id> [--ttsName ...] [options]
+#   ./duix_run.sh create [options]
+#   ./duix_run.sh run [options]          # end-to-end helper
 #   ./duix_run.sh status <task_id> [-c]
-#   ./duix_run.sh <coverImageUrl> [language]   # check → create (may need TTS select) → status
+#   ./duix_run.sh <coverImageUrl> [language]   # legacy helper shorthand
+#
+# Options for create/run:
+#   --coverImageUrl <path|url>
+#   --coverImage <base64>
+#   --conversationId <id>
+#   --ttsName <name>
+#   --language <lang>      default: English
+#   --name <name>
+#   --greetings <text>
+#   --profile <text>
+#   --no-update-check
+#   --yes / --confirm 是   # only after user confirmed quota (helper will prompt)
 
 set -e
 
@@ -26,6 +40,16 @@ NC='\033[0m'
 CONFIG_FILE="$HOME/.duixrc"
 NPM_REGISTRY="https://registry.npmjs.org/"
 NPM_INSTALL_CMD="npm i duix-cli -g --registry=$NPM_REGISTRY"
+NO_UPDATE_CHECK=0
+
+COVER_IMAGE_URL=""
+COVER_IMAGE=""
+CONVERSATION_ID=""
+TTS_NAME=""
+LANGUAGE="English"
+NAME=""
+GREETINGS=""
+PROFILE=""
 
 load_config() {
   if [ ! -f "$CONFIG_FILE" ]; then
@@ -38,14 +62,13 @@ load_config() {
       ''|\#*) continue ;;
     esac
     case "$line" in
-      DUIX_API_KEY=*|DUIX_APP_ID=*|DUIX_APP_KEY=*|DUIX_API_KEY=*)
+      DUIX_API_KEY=*|DUIX_APP_ID=*|DUIX_APP_KEY=*)
         key="${line%%=*}"
         value="${line#*=}"
         value="${value%\"}"
         value="${value#\"}"
         value="${value%\'}"
         value="${value#\'}"
-        # Legacy alias: DUIX_API_KEY → DUIX_API_KEY
         if [ "$key" = "DUIX_API_KEY" ] && [ -z "${DUIX_API_KEY:-}" ]; then
           export DUIX_API_KEY="$value"
         else
@@ -130,29 +153,31 @@ usage() {
 Usage:
   $0 --config
   $0 check
-  $0 create --coverImageUrl <path|url> [--ttsName <name>] [options]
-  $0 create --coverImage <base64> [--ttsName <name>] [options]
-  $0 create --conversationId <id> [--ttsName <name>] [options]
-  $0 status <task_id> [-c] [--retry-interval 2000] [--max-retry-times 30]
-  $0 <coverImageUrl> [language]
+  $0 create [options]
+  $0 run [options]                 # end-to-end: preview check → create gates → status
+  $0 status <task_id> [-c] [...]
+  $0 <coverImageUrl> [language]    # legacy shorthand for: run --coverImageUrl ... --language ...
 
-create options:
-  --ttsName <name>       User-selected voice from dropdown (required on final submit; never auto-fill)
+Options:
+  --coverImageUrl <path|url>
+  --coverImage <base64>            mutually exclusive with --coverImageUrl
+  --conversationId <id>            required when no image is provided
+  --ttsName <name>                 required before final submit; never auto-filled
+  --language <lang>                default: English
   --name <name>
   --greetings <text>
   --profile <text>
-  --language <lang>      default: English
+  --no-update-check                skip npm version check
 
-Notes:
-  First create without --ttsName may return need_select=true (exit 2 in helper mode).
-  That is NOT success — wait for the user to choose a voice, then create again.
+Hard gates (do not bypass):
+  1) need_select  → stop, ask user to pick TTS, re-run with --ttsName
+  2) need_confirm → stop, ask user 是/否, then re-submit WITH --yes
+  Never auto-pass --yes without an interactive user confirmation in this script.
 
 Examples:
-  $0 --config
-  $0 check
-  $0 create --coverImageUrl ./face.png --language English
-  $0 create --coverImageUrl ./face.png --ttsName <selected> --language English
-  $0 create --conversationId 1983775419508027393 --ttsName <selected>
+  $0 run --coverImageUrl ./face.png --language English
+  $0 run --coverImageUrl ./face.png --ttsName Echo --language English --name Ada
+  $0 create --coverImageUrl ./face.png --ttsName Echo --language English
   $0 status 1983775419508027393 -c
 EOF
 }
@@ -178,9 +203,40 @@ json_value() {
     | sed -E "s/^\"//; s/\"$//"
 }
 
+# Return 0 if any of the given JSON fields equals "true".
+json_flag_true() {
+  local json="$1"
+  shift
+  local field value
+  for field in "$@"; do
+    value=$(json_value "$json" "$field")
+    if [ "$value" = "true" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+ask_yes_no() {
+  local prompt="$1"
+  local answer
+  if [ -n "$prompt" ]; then
+    printf '%s\n' "$prompt"
+  fi
+  read -r answer
+  case "$(printf '%s' "$answer" | tr '[:upper:]' '[:lower:]')" in
+    yes|y|是) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 check_duix_cli_update() {
   local current_version
   local latest_version
+
+  if [ "$NO_UPDATE_CHECK" = "1" ]; then
+    return 0
+  fi
 
   echo -e "${CYAN}Checking duix-cli version from: $NPM_REGISTRY${NC}" >&2
 
@@ -206,44 +262,347 @@ check_duix_cli_update() {
   fi
 }
 
-confirm_quota() {
-  local check_json="$1"
+# Parse shared create/run options into globals. Consumes "$@".
+parse_create_options() {
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --coverImageUrl)
+        COVER_IMAGE_URL="${2:-}"; shift 2 || true ;;
+      --coverImage)
+        COVER_IMAGE="${2:-}"; shift 2 || true ;;
+      --conversationId)
+        CONVERSATION_ID="${2:-}"; shift 2 || true ;;
+      --ttsName)
+        TTS_NAME="${2:-}"; shift 2 || true ;;
+      --language)
+        LANGUAGE="${2:-English}"; shift 2 || true ;;
+      --name)
+        NAME="${2:-}"; shift 2 || true ;;
+      --greetings)
+        GREETINGS="${2:-}"; shift 2 || true ;;
+      --profile)
+        PROFILE="${2:-}"; shift 2 || true ;;
+      --no-update-check)
+        NO_UPDATE_CHECK=1; shift ;;
+      --yes|--confirm)
+        # Intentionally ignored as inbound auto-flag.
+        # Helper will only append --yes after interactive user confirmation.
+        if [ "$1" = "--confirm" ]; then
+          shift 2 || true
+        else
+          shift
+        fi
+        echo -e "${YELLOW}Note: ignoring inbound --yes/--confirm. Helper will ask interactively before final submit.${NC}" >&2
+        ;;
+      -h|--help)
+        usage; exit 0 ;;
+      *)
+        echo -e "${RED}Unknown option: $1${NC}" >&2
+        usage
+        exit 1
+        ;;
+    esac
+  done
+}
+
+validate_create_inputs() {
+  if [ -n "$COVER_IMAGE" ] && [ -n "$COVER_IMAGE_URL" ]; then
+    echo -e "${RED}Error: --coverImage and --coverImageUrl cannot be used together.${NC}" >&2
+    exit 1
+  fi
+  if [ -z "$COVER_IMAGE" ] && [ -z "$COVER_IMAGE_URL" ] && [ -z "$CONVERSATION_ID" ]; then
+    echo -e "${RED}Error: provide --coverImageUrl / --coverImage, or --conversationId.${NC}" >&2
+    exit 1
+  fi
+}
+
+# Build and run: duix-cli avatar create ...
+# Pass "1" to append --yes after interactive user confirmation only.
+run_create_once() {
+  local with_yes="${1:-0}"
+  local -a args
+  args=(duix-cli avatar create)
+
+  if [ -n "$COVER_IMAGE_URL" ]; then
+    args+=(--coverImageUrl "$COVER_IMAGE_URL")
+  fi
+  if [ -n "$COVER_IMAGE" ]; then
+    args+=(--coverImage "$COVER_IMAGE")
+  fi
+  if [ -n "$CONVERSATION_ID" ]; then
+    args+=(--conversationId "$CONVERSATION_ID")
+  fi
+  if [ -n "$TTS_NAME" ]; then
+    args+=(--ttsName "$TTS_NAME")
+  fi
+  if [ -n "$LANGUAGE" ]; then
+    args+=(--language "$LANGUAGE")
+  fi
+  if [ -n "$NAME" ]; then
+    args+=(--name "$NAME")
+  fi
+  if [ -n "$GREETINGS" ]; then
+    args+=(--greetings "$GREETINGS")
+  fi
+  if [ -n "$PROFILE" ]; then
+    args+=(--profile "$PROFILE")
+  fi
+  if [ "$with_yes" = "1" ]; then
+    args+=(--yes)
+  fi
+
+  echo -e "${CYAN}$ ${args[*]}${NC}" >&2
+  "${args[@]}"
+}
+
+print_next_command_after_tts_select() {
+  echo -e "${YELLOW}HARD STOP: TTS selection required. Create was NOT submitted.${NC}"
+  echo -e "${YELLOW}Do not auto-pick a voice. Ask the user to choose, then re-run:${NC}"
+  printf '  %s run' "$0"
+  if [ -n "$COVER_IMAGE_URL" ]; then
+    printf ' --coverImageUrl %q' "$COVER_IMAGE_URL"
+  fi
+  if [ -n "$COVER_IMAGE" ]; then
+    printf ' --coverImage %q' "$COVER_IMAGE"
+  fi
+  if [ -n "$CONVERSATION_ID" ]; then
+    printf ' --conversationId %q' "$CONVERSATION_ID"
+  fi
+  printf ' --ttsName <user-selected>'
+  printf ' --language %q' "$LANGUAGE"
+  if [ -n "$NAME" ]; then
+    printf ' --name %q' "$NAME"
+  fi
+  if [ -n "$GREETINGS" ]; then
+    printf ' --greetings %q' "$GREETINGS"
+  fi
+  if [ -n "$PROFILE" ]; then
+    printf ' --profile %q' "$PROFILE"
+  fi
+  printf '\n'
+}
+
+print_submit_summary() {
+  echo -e "${CYAN}即将提交数字人创建任务：${NC}"
+  if [ -n "$COVER_IMAGE_URL" ]; then
+    echo "  - 图片: $COVER_IMAGE_URL"
+  elif [ -n "$COVER_IMAGE" ]; then
+    echo "  - 图片: (Base64 coverImage)"
+  else
+    echo "  - 图片: (无，使用 conversationId)"
+  fi
+  echo "  - 声音: ${TTS_NAME:-未选择}"
+  echo "  - 语言: ${LANGUAGE:-English}"
+  echo "  - 名称: ${NAME:-系统默认}"
+  echo "  - 开场白: ${GREETINGS:-系统默认}"
+  echo "  - 人设: ${PROFILE:-系统默认}"
+  if [ -n "$COVER_IMAGE_URL" ] || [ -n "$COVER_IMAGE" ]; then
+    echo "  - 扣费: 1 次定制次数（用户已确认）"
+  fi
+}
+
+handle_create_errors() {
+  local json="$1"
+  local skill_code
+
+  skill_code=$(json_value "$json" "skill_code")
+  if [ -z "$skill_code" ]; then
+    skill_code=$(json_value "$json" "code")
+  fi
+
+  if [ "$skill_code" = "40301" ]; then
+    echo -e "${RED}定制次数不足（skill_code=40301），无法继续创建。${NC}" >&2
+    echo -e "${YELLOW}请前往充值/订阅：https://www.duix.com/pricing${NC}" >&2
+    echo "$json"
+    exit 1
+  fi
+}
+
+# Preview only: block when quota is already insufficient.
+# Do NOT treat this interactive answer as create --yes.
+preview_quota_check() {
+  local check_json
   local can_continue
   local remain
   local msg
-  local answer
+
+  if [ -z "$COVER_IMAGE_URL" ] && [ -z "$COVER_IMAGE" ]; then
+    return 0
+  fi
+
+  echo -e "${CYAN}[STEP 0] Preview custom quota (early check only)...${NC}"
+  check_json=$(duix-cli avatar check)
+  echo "$check_json"
 
   can_continue=$(json_value "$check_json" "canContinue")
   remain=$(json_value "$check_json" "currentRemain")
   msg=$(json_value "$check_json" "msg")
 
   if [ "$can_continue" != "true" ]; then
-    echo "$check_json"
+    handle_create_errors "$check_json"
+    echo -e "${RED}Quota preview failed. Aborting before create.${NC}" >&2
     exit 1
   fi
 
   if [ -n "$msg" ]; then
     printf '%s\n' "$msg"
   else
-    printf '定制次数确认. 本次数字人对话生成需消耗 1 次定制次数，当前余额 %s 次。确认提交请回复'\''是'\''，取消请回复'\''否'\''。\n' "${remain:-未知}"
+    printf '预检：本次定制预计消耗 1 次，当前余额 %s 次。\n' "${remain:-未知}"
   fi
 
-  read -r answer
-  case "$(printf '%s' "$answer" | tr '[:upper:]' '[:lower:]')" in
-    yes|y|是) ;;
-    *)
-      echo "数字人创建任务已取消。"
-      exit 0
-      ;;
-  esac
+  echo -e "${YELLOW}注意：这只是预检。正式提交时 create 仍会返回 need_confirm，必须再次由用户确认后才会加 --yes。${NC}"
+  if ! ask_yes_no "预检通过，是否继续进入创建流程？回复 是/否"; then
+    echo "数字人创建任务已取消。"
+    exit 0
+  fi
 }
 
-if [ "$1" = "--config" ]; then
-  set_config
-  exit 0
-fi
+extract_task_id() {
+  local json="$1"
+  local task_id
+  task_id=$(json_value "$json" "task_id")
+  if [ -z "$task_id" ]; then
+    task_id=$(json_value "$json" "taskId")
+  fi
+  printf '%s\n' "$task_id"
+}
 
-if [ "$1" = "-h" ] || [ "$1" = "--help" ] || [ $# -lt 1 ]; then
+# Full create flow with hard gates. Optionally poll status when POLL_STATUS=1.
+run_create_flow() {
+  local poll_status="${1:-0}"
+  local create_json
+  local task_id
+  local confirm_msg
+  local has_custom_image=0
+
+  validate_create_inputs
+
+  if [ -n "$COVER_IMAGE_URL" ] || [ -n "$COVER_IMAGE" ]; then
+    has_custom_image=1
+  fi
+
+  # Gate 1: TTS select
+  if [ "$has_custom_image" = "1" ] && [ -z "$TTS_NAME" ]; then
+    echo -e "${CYAN}[STEP 1] Fetching TTS options (no --ttsName yet)...${NC}"
+    create_json=$(run_create_once 0)
+    echo "$create_json"
+    handle_create_errors "$create_json"
+
+    if json_flag_true "$create_json" need_select needSelect; then
+      print_next_command_after_tts_select
+      exit 2
+    fi
+
+    # Unexpected: custom image without ttsName but no need_select
+    task_id=$(extract_task_id "$create_json")
+    if [ -n "$task_id" ]; then
+      echo -e "${YELLOW}Warning: got task_id without explicit --ttsName. Continuing cautiously.${NC}" >&2
+    else
+      echo -e "${RED}Expected need_select when --ttsName is missing, but none was returned.${NC}" >&2
+      exit 1
+    fi
+  else
+    echo -e "${CYAN}[STEP 1] Creating avatar (without --yes first)...${NC}"
+    create_json=$(run_create_once 0)
+    echo "$create_json"
+    handle_create_errors "$create_json"
+
+    if json_flag_true "$create_json" need_select needSelect; then
+      print_next_command_after_tts_select
+      exit 2
+    fi
+  fi
+
+  # Gate 2: quota confirm for custom image
+  if [ "$has_custom_image" = "1" ] && json_flag_true "$create_json" need_confirm needConfirm; then
+    echo -e "${YELLOW}HARD STOP: Quota confirmation required. Create was NOT submitted.${NC}"
+    confirm_msg=$(json_value "$create_json" "msg")
+    if [ -z "$confirm_msg" ]; then
+      confirm_msg='💡 定制次数确认
+本次数字人对话生成需消耗 1 次定制次数。
+确认提交请回复"是"，取消请回复"否"。'
+    fi
+
+    if ! ask_yes_no "$confirm_msg"; then
+      echo "数字人创建任务已取消。"
+      # Optional: notify CLI of cancel
+      duix-cli avatar create \
+        ${COVER_IMAGE_URL:+--coverImageUrl "$COVER_IMAGE_URL"} \
+        ${COVER_IMAGE:+--coverImage "$COVER_IMAGE"} \
+        ${TTS_NAME:+--ttsName "$TTS_NAME"} \
+        ${LANGUAGE:+--language "$LANGUAGE"} \
+        --confirm 否 >/dev/null 2>&1 || true
+      exit 0
+    fi
+
+    print_submit_summary
+    echo -e "${CYAN}[STEP 2] User confirmed. Submitting with --yes...${NC}"
+    create_json=$(run_create_once 1)
+    echo "$create_json"
+    handle_create_errors "$create_json"
+
+    if json_flag_true "$create_json" need_confirm needConfirm; then
+      echo -e "${RED}Still got need_confirm after --yes. Aborting.${NC}" >&2
+      exit 1
+    fi
+    if json_flag_true "$create_json" need_select needSelect; then
+      print_next_command_after_tts_select
+      exit 2
+    fi
+  fi
+
+  task_id=$(extract_task_id "$create_json")
+  if [ -z "$task_id" ]; then
+    echo -e "${RED}Failed to extract task_id. Create may still be waiting for need_select/need_confirm.${NC}" >&2
+    if json_flag_true "$create_json" need_select needSelect; then
+      print_next_command_after_tts_select
+      exit 2
+    fi
+    if json_flag_true "$create_json" need_confirm needConfirm; then
+      echo -e "${YELLOW}need_confirm is still true. Re-run after user confirmation with helper flow.${NC}" >&2
+      exit 2
+    fi
+    exit 1
+  fi
+
+  echo -e "${GREEN}Task created: $task_id${NC}"
+  if [ "$poll_status" = "1" ]; then
+    echo -e "${CYAN}[STEP 3] Polling status...${NC}"
+    exec duix-cli avatar status "$task_id" -c
+  else
+    echo "Next: $0 status $task_id -c"
+  fi
+}
+
+############################
+# Entrypoint
+############################
+
+# Global early flags that may appear before subcommand.
+ARGS=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --no-update-check)
+      NO_UPDATE_CHECK=1
+      shift
+      ;;
+    --config)
+      set_config
+      exit 0
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      ARGS+=("$1")
+      shift
+      ;;
+  esac
+done
+set -- "${ARGS[@]}"
+
+if [ $# -lt 1 ]; then
   usage
   exit 0
 fi
@@ -264,50 +623,32 @@ case "$CMD" in
     exec duix-cli avatar check
     ;;
   create)
-    exec duix-cli avatar create "$@"
+    parse_create_options "$@"
+    # create subcommand: same hard gates, but do not auto-poll unless user asks later
+    preview_quota_check
+    run_create_flow 0
+    ;;
+  run)
+    parse_create_options "$@"
+    preview_quota_check
+    run_create_flow 1
     ;;
   status|result|get-result)
     exec duix-cli avatar status "$@"
     ;;
+  --coverImageUrl|--coverImage|--conversationId|--ttsName|--language|--name|--greetings|--profile)
+    # Allow: ./duix_run.sh --coverImageUrl ./a.png --ttsName Echo ...
+    parse_create_options "$CMD" "$@"
+    preview_quota_check
+    run_create_flow 1
+    ;;
   *)
-    # End-to-end helper: <coverImageUrl> [language]
-    IMAGE_URL="$CMD"
-    LANGUAGE="${1:-English}"
-
-    echo -e "${CYAN}[STEP 0] Checking custom quota...${NC}"
-    CHECK_JSON=$(duix-cli avatar check)
-    echo "$CHECK_JSON"
-    confirm_quota "$CHECK_JSON"
-
-    echo -e "${CYAN}[STEP 1] Creating avatar task (TTS select may be required)...${NC}"
-    CREATE_JSON=$(duix-cli avatar create --coverImageUrl "$IMAGE_URL" --language "$LANGUAGE")
-    echo "$CREATE_JSON"
-
-    NEED_SELECT=$(json_value "$CREATE_JSON" "need_select")
-    if [ "$NEED_SELECT" = "true" ] || [ "$NEED_SELECT" = "needSelect" ]; then
-      NEED_SELECT=$(json_value "$CREATE_JSON" "needSelect")
+    # Legacy shorthand: <coverImageUrl> [language]
+    COVER_IMAGE_URL="$CMD"
+    if [ $# -gt 0 ]; then
+      LANGUAGE="$1"
     fi
-    if [ "$(json_value "$CREATE_JSON" "needSelect")" = "true" ] || [ "$(json_value "$CREATE_JSON" "need_select")" = "true" ]; then
-      echo -e "${YELLOW}HARD STOP: TTS selection required. Create was NOT submitted.${NC}"
-      echo -e "${YELLOW}Do not auto-pick a voice. Show options to the user, then re-run with their choice:${NC}"
-      echo "  $0 create --coverImageUrl \"$IMAGE_URL\" --ttsName <user-selected> --language \"$LANGUAGE\""
-      echo "Then:"
-      echo "  $0 status <task_id> -c"
-      exit 2
-    fi
-
-    TASK_ID=$(json_value "$CREATE_JSON" "task_id")
-    if [ -z "$TASK_ID" ]; then
-      TASK_ID=$(json_value "$CREATE_JSON" "taskId")
-    fi
-
-    if [ -z "$TASK_ID" ]; then
-      echo -e "${RED}Failed to extract task_id (maybe TTS selection is still required).${NC}"
-      exit 1
-    fi
-
-    echo -e "${GREEN}Task created: $TASK_ID${NC}"
-    echo -e "${CYAN}[STEP 2] Polling status...${NC}"
-    exec duix-cli avatar status "$TASK_ID" -c
+    preview_quota_check
+    run_create_flow 1
     ;;
 esac
