@@ -73,13 +73,13 @@ save_config() {
 set_config() {
   echo -e "${CYAN}=== Duix Avatar Conversation Configuration ===${NC}"
   echo "DUIX_APP_ID / DUIX_APP_KEY are required for avatar JWT auth."
-  echo "DUIX_API_KEY is required when uploading a local image via --coverImageUrl."
+  echo "DUIX_API_KEY is optional and not required for avatar commands."
   echo ""
 
   local app_id app_key api_key2
   read -r -p "DUIX_APP_ID> " app_id
   read -r -p "DUIX_APP_KEY> " app_key
-  read -r -p "DUIX_API_KEY (optional if only using remote URL / conversationId)> " api_key2
+  read -r -p "DUIX_API_KEY (optional)> " api_key2
 
   if [ -z "$app_id" ] || [ -z "$app_key" ]; then
     echo -e "${RED}Error: DUIX_APP_ID and DUIX_APP_KEY cannot be empty${NC}"
@@ -121,7 +121,7 @@ ensure_credentials() {
   if [ -n "${DUIX_API_KEY:-}" ]; then
     echo -e "DUIX_API_KEY: ${GREEN}$(mask_secret "$DUIX_API_KEY")${NC}" >&2
   else
-    echo -e "${YELLOW}DUIX_API_KEY: (not set; required only for local image upload)${NC}" >&2
+    echo -e "${YELLOW}DUIX_API_KEY: (not set; not required for avatar commands)${NC}" >&2
   fi
 }
 
@@ -137,11 +137,15 @@ Usage:
   $0 <coverImageUrl> [language]
 
 create options:
-  --ttsName <name>       Selected voice from dropdown (required on second call)
+  --ttsName <name>       User-selected voice from dropdown (required on final submit; never auto-fill)
   --name <name>
   --greetings <text>
   --profile <text>
   --language <lang>      default: English
+
+Notes:
+  First create without --ttsName may return need_select=true (exit 2 in helper mode).
+  That is NOT success — wait for the user to choose a voice, then create again.
 
 Examples:
   $0 --config
@@ -284,11 +288,12 @@ case "$CMD" in
       NEED_SELECT=$(json_value "$CREATE_JSON" "needSelect")
     fi
     if [ "$(json_value "$CREATE_JSON" "needSelect")" = "true" ] || [ "$(json_value "$CREATE_JSON" "need_select")" = "true" ]; then
-      echo -e "${YELLOW}TTS dropdown required. Re-run:${NC}"
-      echo "  $0 create --coverImageUrl \"$IMAGE_URL\" --ttsName <selected> --language \"$LANGUAGE\""
+      echo -e "${YELLOW}HARD STOP: TTS selection required. Create was NOT submitted.${NC}"
+      echo -e "${YELLOW}Do not auto-pick a voice. Show options to the user, then re-run with their choice:${NC}"
+      echo "  $0 create --coverImageUrl \"$IMAGE_URL\" --ttsName <user-selected> --language \"$LANGUAGE\""
       echo "Then:"
       echo "  $0 status <task_id> -c"
-      exit 0
+      exit 2
     fi
 
     TASK_ID=$(json_value "$CREATE_JSON" "task_id")

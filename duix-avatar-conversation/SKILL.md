@@ -7,7 +7,7 @@ description: >-
   the user asks for realtime conversational avatar, custom digital human, talking
   avatar chat, interactive digital human, 实时对话数字人, 定制数字人对话, or mentions
   duix-avatar-conversation / duix-get-avatar-create-result.
-version: 1.2.4
+version: 1.2.5
 author: duix
 compatibility: openclaw, cursor, copilot, claude-code, codex, gemini
 tags: [duix, avatar, conversation, realtime, digital-human, chat, tts, duix-cli]
@@ -50,9 +50,11 @@ These rules override convenience. Violating them is a skill failure.
 2. **Never auto-pick a voice.** Do not choose `options[0]`, a “default”, a guessed name, or any value the user did not explicitly select.
 3. **Never invent `--ttsName`.** It must come from CLI dropdown `options[].value` (or `label` only if value is absent) after user choice.
 4. **`need_select` is not success.** If create returns `needSelect=true` / `need_select=true`, generation has **not** started. There is usually **no** `task_id`. Stop and wait for the user.
-5. **Do not call `avatar status` until create returns a real `task_id`.**
-6. **Do not pass `--ttsName` on the first create call** unless the user already chose a voice earlier in this conversation.
-7. Treat `exitCode=0` + `success=true` carefully: also inspect `need_select` / `need_confirm`. Intermediate soft responses must not be treated as “avatar created”.
+5. **`need_confirm` is not success.** For custom images, create returns `need_confirm=true` until the user replies 是. Do **not** pass `--confirm 是` / `--yes` unless the user explicitly confirmed.
+6. **Never auto-confirm quota deduction.**
+7. **Do not call `avatar status` until create returns a real `task_id`.**
+8. **Do not pass `--ttsName` on the first create call** unless the user already chose a voice earlier in this conversation.
+9. Treat `exitCode=0` + `success=true` carefully: also inspect `need_select` / `need_confirm`. Intermediate soft responses must not be treated as “avatar created”.
 
 ---
 
@@ -163,42 +165,10 @@ Ask one by one. Every item may be skipped.
 Skipped fields must **not** be passed to the CLI.  
 Only include flags for fields the user actually provided.
 
-### Step 5: Confirm custom-quota deduction before submit (required)
+### Step 5: Confirm custom-quota deduction before submit (required HARD GATE)
 
-Custom-image creation costs **1** custom quota. Check first:
-
-```bash
-duix-cli avatar check
-```
-
-Rules:
-
-1. `canContinue=false` / `skill_code=40301` → show the payload and **stop**
-2. `canContinue=true` → show the confirmation `msg` from CLI (preferred) and wait for explicit approval
-
-If CLI `msg` is missing, use:
-
-> Custom quota confirmation. This digital-human creation will consume 1 custom quota. Current balance: X.  
-> Reply "yes" to confirm, or "no" to cancel.
-
-Continue only when the user clearly replies `yes` / `y`.  
-`no` or anything else → cancel and end the flow.
-
-### Step 6: Final confirm and start generation
-
-Do one last confirmation. Voice must already be user-selected:
-
-> Ready to submit. Please confirm:  
-> - Image: ...  
-> - Voice: ... (must be the voice you chose)  
-> - Language: ...  
-> - Name: ... (or "system default")  
-> - Greeting: ... (or "system default")  
-> - Profile: ... (or "system default")  
->  
-> Reply "confirm" to submit, or "cancel" to abort.
-
-After confirmation, submit with the **user-selected** `--ttsName`:
+Custom-image creation costs **1** custom quota.  
+After TTS is selected, call create with all fields **except** `--confirm`:
 
 ```bash
 duix-cli avatar create \
@@ -210,11 +180,59 @@ duix-cli avatar create \
   [--profile "<optional>"]
 ```
 
+#### How to interpret the response
+
+| Signal | Meaning | Required agent action |
+| --- | --- | --- |
+| `data.needConfirm=true` **or** `data.skillPayload.need_confirm=true` | Quota confirm required; create **not** submitted | **STOP.** Show `msg` to the user. Wait for 是/否. |
+| `skill_code=40301` / insufficient quota | Cannot continue | Show payload and stop |
+| `task_id` present | Already submitted (should only happen with `--confirm 是`) | Proceed to status |
+
+When `need_confirm` is true:
+
+1. Show CLI `msg` (preferred), e.g.  
+   `💡 定制次数确认 本次数字人对话生成需消耗 1 次定制次数，当前余额 X 次。确认提交请回复"是"，取消请回复"否"。`
+2. Wait for explicit user reply
+3. User says 是 / yes / y → continue to Step 6 with `--confirm 是` (or `--yes`)
+4. User says 否 / no / n → cancel and end. Optionally call create once with `--confirm 否`
+5. **Never auto-confirm** to save a turn
+
+You may still run `duix-cli avatar check` for an early balance preview, but **create’s `need_confirm` is the hard gate**.
+
+### Step 6: Final summary and submit with `--confirm`
+
+Show a short summary, then submit **only after** the user confirmed quota (Step 5):
+
+> Ready to submit. Please confirm:  
+> - Image: ...  
+> - Voice: ... (must be the voice you chose)  
+> - Language: ...  
+> - Name: ... (or "system default")  
+> - Greeting: ... (or "system default")  
+> - Profile: ... (or "system default")  
+> - Quota: consume 1 custom count (user already replied 是)  
+>  
+> Submitting now...
+
+```bash
+duix-cli avatar create \
+  --coverImageUrl "<image>" \
+  --ttsName "<user-selected-voice>" \
+  --language "<language, default English>" \
+  --confirm 是 \
+  [--name "<optional>"] \
+  [--greetings "<optional>"] \
+  [--profile "<optional>"]
+```
+
+Equivalently: `--yes` instead of `--confirm 是`.
+
 On success, read `data.skillPayload.data.task_id` (or `data.taskId`) and tell the user:
 
 > Submitted. Task ID: xxx. Generation has started. Please wait...
 
-If this second create still returns `need_select`, the voice was missing/invalid — show options again and **do not** claim submission succeeded.
+If create still returns `need_confirm`, confirmation was missing — show the message again and **do not** claim submission succeeded.  
+If it returns `need_select`, voice was missing/invalid — go back to Step 2.
 
 ### Step 7: Poll result and return the link
 
@@ -271,6 +289,7 @@ Common flags:
 | `--coverImageUrl` | One of image / conversation modes | Local path or remote URL; local is converted to Base64 by CLI |
 | `--coverImage` | Same | Base64; mutually exclusive with `--coverImageUrl` |
 | `--ttsName` | Required at **final** submit only | Must be user-selected from dropdown; never auto-filled |
+| `--confirm` / `--yes` | Required for custom-image final submit | `--confirm 是` or `--yes` only after user quota confirmation |
 | `--language` | Optional | Default `English` |
 | `--name` | Optional | Avatar name |
 | `--greetings` | Optional | Opening greeting |
@@ -299,7 +318,7 @@ Common flags:
 2. Ask optional fields proactively, and allow "skip"  
 3. TTS names must come from the CLI dropdown **and the user's explicit choice** — never auto-pick  
 4. `need_select=true` means stop; it is not “create succeeded”  
-5. For custom images, always run `avatar check` and get explicit quota confirmation before final create  
+5. For custom images, create returns `need_confirm=true` until user replies 是; only then re-run with `--confirm 是` / `--yes` — never auto-confirm  
 6. **`processing` means "still generating", not stuck** — keep polling the same `task_id`; never recreate or declare failure just because status is `processing`  
 7. Never print full secrets  
 8. Never reimplement API calls outside duix-cli
@@ -308,6 +327,7 @@ Common flags:
 
 | Updated At | Version | Changes |
 | --- | --- | --- |
+| 2026-08-05 | v1.2.5 | Create hard-gates custom quota confirm (`need_confirm` → `--confirm 是` / `--yes`) |
 | 2026-08-05 | v1.2.4 | Harden TTS gate: forbid auto-select; clarify `need_select` is not success; avatar no longer needs `DUIX_API_KEY` |
 | 2026-08-04 | v1.2.3 | Clarify that status=`processing` is normal progress, not a stuck/hung task |
 | 2026-08-04 | v1.2.2 | Expand supported speaking languages to the full platform list |
