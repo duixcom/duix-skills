@@ -7,7 +7,7 @@ description: >-
   the user asks for realtime conversational avatar, custom digital human, talking
   avatar chat, interactive digital human, 实时对话数字人, 定制数字人对话, or mentions
   duix-avatar-conversation / duix-get-avatar-create-result.
-version: 1.2.3
+version: 1.2.4
 author: duix
 compatibility: openclaw, cursor, copilot, claude-code, codex, gemini
 tags: [duix, avatar, conversation, realtime, digital-human, chat, tts, duix-cli]
@@ -29,15 +29,30 @@ Use this skill when the user wants a realtime conversational digital human / cus
 npm i duix-cli -g --registry=https://registry.npmjs.org/
 ```
 
-Required environment variables:
+Required environment variables (avatar commands):
 
 ```bash
 export DUIX_APP_ID="your-app-id"
 export DUIX_APP_KEY="your-app-key"
-export DUIX_API_KEY="your-skills-api-key"   # needed when uploading a local image to OBS
 ```
 
+`DUIX_API_KEY` is **not** required for avatar create/check/status.
+
 If credentials are missing, help the user configure them before continuing.
+
+---
+
+## Agent Hard Rules (MUST)
+
+These rules override convenience. Violating them is a skill failure.
+
+1. **Never skip TTS selection.** Providing only an image is not enough to submit.
+2. **Never auto-pick a voice.** Do not choose `options[0]`, a “default”, a guessed name, or any value the user did not explicitly select.
+3. **Never invent `--ttsName`.** It must come from CLI dropdown `options[].value` (or `label` only if value is absent) after user choice.
+4. **`need_select` is not success.** If create returns `needSelect=true` / `need_select=true`, generation has **not** started. There is usually **no** `task_id`. Stop and wait for the user.
+5. **Do not call `avatar status` until create returns a real `task_id`.**
+6. **Do not pass `--ttsName` on the first create call** unless the user already chose a voice earlier in this conversation.
+7. Treat `exitCode=0` + `success=true` carefully: also inspect `need_select` / `need_confirm`. Intermediate soft responses must not be treated as “avatar created”.
 
 ---
 
@@ -49,7 +64,7 @@ For optional fields, explicitly tell the user they can skip.
 ```text
 Progress:
 - [ ] 1. Upload image
-- [ ] 2. Select TTS voice
+- [ ] 2. Select TTS voice   ← HARD GATE: stop until user picks
 - [ ] 3. Select language (default English, can skip)
 - [ ] 4. Optional persona: name / greetings / profile (each can skip)
 - [ ] 5. Confirm custom-quota deduction
@@ -61,34 +76,51 @@ Progress:
 
 Ask the user:
 
-> Please provide a portrait image for the digital human (local file path or a public image URL). Prefer a clear, front-facing face with no obstruction.
+> Please provide a portrait image for the digital human (local file path or a public image URL). Prefer a clear, front-facing face with no obstruction. Aspect ratio must be **16:9** or **9:16**.
 
 Save the value as `coverImageUrl` (local path or `http(s)` URL).  
 If the user provides Base64, use `--coverImage` instead. Never pass `--coverImage` and `--coverImageUrl` together.
 
 If there is no image yet, **stop here**. Do not move to voice selection.
 
-### Step 2: Select TTS voice (required)
+### Step 2: Select TTS voice (required HARD GATE)
 
-Call create once without inventing a voice name:
+Call create **once without** `--ttsName`:
 
 ```bash
 duix-cli avatar create --coverImageUrl "<image>"
 ```
 
-The CLI returns a TTS dropdown (`need_select=true` / `select_field=ttsName`).  
-Show `data.options` to the user and ask them to pick one.
+#### How to interpret the response
+
+| Signal | Meaning | Required agent action |
+| --- | --- | --- |
+| `data.needSelect=true` **or** `data.skillPayload.need_select=true` | TTS dropdown required; create **not** submitted | **STOP.** Show options to the user. Wait. Do not continue steps 3–7. |
+| `data.skillPayload.skill_code=100` and no `task_id` | Intermediate soft state (select / confirm) | Inspect `need_select` / `need_confirm`; do not treat as created |
+| `data.taskId` / `data.skillPayload.data.task_id` present | Create actually submitted | Only then proceed to status polling |
+
+When `need_select` is true:
+
+1. Extract `data.options` or `data.skillPayload.data.options`
+2. Show the list to the **user** and ask them to pick one
+3. Wait for an explicit user reply that maps to one option
+4. Only then store `--ttsName <selected option value>`
+5. Do **not** proceed to language/persona/quota/submit until this is done
 
 Prompt:
 
-> Please choose one voice from the list below:
+> Please choose one voice from the list below (reply with the voice name/number). I cannot choose for you.
 
-After the user selects, store `--ttsName`.  
-**Never invent a TTS name.**
+**Forbidden in this step:**
+
+- Auto-selecting any option to “save a turn”
+- Re-running create with a guessed `--ttsName` before the user answers
+- Telling the user “generation started” after a `need_select` response
+- Jumping to `avatar status`
 
 ### Step 3: Select language (default English, can skip)
 
-Ask proactively:
+Ask proactively **only after TTS is selected**:
 
 > The default speaking language is **English**.  
 > To switch, choose one language from the supported list below. To keep the default, reply "skip" or "keep default".
@@ -154,11 +186,11 @@ Continue only when the user clearly replies `yes` / `y`.
 
 ### Step 6: Final confirm and start generation
 
-Do one last confirmation:
+Do one last confirmation. Voice must already be user-selected:
 
 > Ready to submit. Please confirm:  
 > - Image: ...  
-> - Voice: ...  
+> - Voice: ... (must be the voice you chose)  
 > - Language: ...  
 > - Name: ... (or "system default")  
 > - Greeting: ... (or "system default")  
@@ -166,12 +198,12 @@ Do one last confirmation:
 >  
 > Reply "confirm" to submit, or "cancel" to abort.
 
-After confirmation, submit immediately:
+After confirmation, submit with the **user-selected** `--ttsName`:
 
 ```bash
 duix-cli avatar create \
   --coverImageUrl "<image>" \
-  --ttsName "<selected-voice>" \
+  --ttsName "<user-selected-voice>" \
   --language "<language, default English>" \
   [--name "<optional>"] \
   [--greetings "<optional>"] \
@@ -182,9 +214,11 @@ On success, read `data.skillPayload.data.task_id` (or `data.taskId`) and tell th
 
 > Submitted. Task ID: xxx. Generation has started. Please wait...
 
+If this second create still returns `need_select`, the voice was missing/invalid — show options again and **do not** claim submission succeeded.
+
 ### Step 7: Poll result and return the link
 
-Avatar generation is **asynchronous and often slow**. After `create` succeeds, always poll:
+Avatar generation is **asynchronous and often slow**. After `create` succeeds **with a task_id**, always poll:
 
 ```bash
 duix-cli avatar status <task_id> -c --retry-interval 2000 --max-retry-times 30
@@ -198,6 +232,8 @@ duix-cli avatar status <task_id> -c --retry-interval 2000 --max-retry-times 30
 | `finished` / `skill_code=200` | Success | Return `conversation_url` |
 | `failed` / `skill_code=500` | Hard failure | Show failure reason |
 | `skill_code=408` | Polling attempts exhausted, task may still be running on server | Keep `task_id`, tell user it is still generating, and query again later with the same `task_id` |
+
+Note: `skill_code=100` is reused for TTS select / quota confirm / processing. Always check `need_select`, `need_confirm`, and `task_status` / `task_id` before deciding what 100 means.
 
 #### Anti-stuck rules for agents
 
@@ -232,9 +268,9 @@ Common flags:
 
 | Flag | Required? | Notes |
 | --- | --- | --- |
-| `--coverImageUrl` | One of image / conversation modes | Local path or remote URL (recommended) |
+| `--coverImageUrl` | One of image / conversation modes | Local path or remote URL; local is converted to Base64 by CLI |
 | `--coverImage` | Same | Base64; mutually exclusive with `--coverImageUrl` |
-| `--ttsName` | Required at final submit | Must come from dropdown selection |
+| `--ttsName` | Required at **final** submit only | Must be user-selected from dropdown; never auto-filled |
 | `--language` | Optional | Default `English` |
 | `--name` | Optional | Avatar name |
 | `--greetings` | Optional | Opening greeting |
@@ -246,10 +282,10 @@ Common flags:
 
 | Code | Meaning |
 | --- | --- |
-| 100 | Processing / needs confirmation / needs TTS select |
+| 100 | Soft intermediate: TTS select / quota confirm / processing — inspect flags |
 | 200 | Success |
 | 40001 | Missing or conflicting params |
-| 40002 | Invalid image / upload failure |
+| 40002 | Invalid image / aspect ratio / upload failure |
 | 40101 | Auth failure |
 | 40301 | Custom quota insufficient |
 | 408 | Polling timeout |
@@ -259,18 +295,20 @@ Common flags:
 
 ## Pitfalls
 
-1. Follow this order only: image → voice → language → optional persona → quota confirm → submit confirm → generate  
+1. Follow this order only: image → **user TTS select** → language → optional persona → quota confirm → submit confirm → generate  
 2. Ask optional fields proactively, and allow "skip"  
-3. TTS names must come from the CLI dropdown  
-4. For custom images, always run `avatar check` and get explicit quota confirmation before create  
-5. **`processing` means "still generating", not stuck** — keep polling the same `task_id`; never recreate or declare failure just because status is `processing`  
-6. Never print full secrets  
-7. Never reimplement API calls outside duix-cli
+3. TTS names must come from the CLI dropdown **and the user's explicit choice** — never auto-pick  
+4. `need_select=true` means stop; it is not “create succeeded”  
+5. For custom images, always run `avatar check` and get explicit quota confirmation before final create  
+6. **`processing` means "still generating", not stuck** — keep polling the same `task_id`; never recreate or declare failure just because status is `processing`  
+7. Never print full secrets  
+8. Never reimplement API calls outside duix-cli
 
 ## Version History
 
 | Updated At | Version | Changes |
 | --- | --- | --- |
+| 2026-08-05 | v1.2.4 | Harden TTS gate: forbid auto-select; clarify `need_select` is not success; avatar no longer needs `DUIX_API_KEY` |
 | 2026-08-04 | v1.2.3 | Clarify that status=`processing` is normal progress, not a stuck/hung task |
 | 2026-08-04 | v1.2.2 | Expand supported speaking languages to the full platform list |
 | 2026-08-04 | v1.2.1 | Rewrite SKILL.md in English while keeping guided flow |

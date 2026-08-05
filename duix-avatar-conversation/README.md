@@ -10,7 +10,7 @@ A realtime conversational digital-human skill for AI agents. It uses **duix-cli*
 
 ### One-Prompt Installation
 
-> Please help me install the duix-avatar-conversation skill: clone https://github.com/duixcom/duix-skills into the skills directory, install `duix-cli`, and configure `DUIX_APP_ID` / `DUIX_APP_KEY` (plus `DUIX_API_KEY` if local image upload is needed).
+> Please help me install the duix-avatar-conversation skill: clone https://github.com/duixcom/duix-skills into the skills directory, install `duix-cli`, and configure `DUIX_APP_ID` / `DUIX_APP_KEY`.
 
 ### Manual Installation
 
@@ -27,11 +27,12 @@ duix-cli --version
 ```bash
 export DUIX_APP_ID="your-app-id"
 export DUIX_APP_KEY="your-app-key"
-export DUIX_API_KEY="your-skills-api-key"   # needed for local --coverImageUrl upload
 
 # or
 ./duix-avatar-conversation/scripts/duix_run.sh --config
 ```
+
+Avatar commands do **not** need `DUIX_API_KEY`.
 
 ---
 
@@ -48,8 +49,8 @@ All network requests are implemented inside **duix-cli**.
 
 ## Guided Flow (Agent)
 
-1. Upload portrait image  
-2. Select TTS voice (from CLI dropdown)  
+1. Upload portrait image (16:9 or 9:16)  
+2. **Select TTS voice (HARD GATE — wait for user; never auto-pick)**  
 3. Choose language (default English, can skip)  
 4. Optional: name / greetings / profile (each can skip)  
 5. Confirm custom-quota deduction  
@@ -58,11 +59,19 @@ All network requests are implemented inside **duix-cli**.
 
 ```bash
 duix-cli avatar create --coverImageUrl ./face.png
-# select TTS, then:
+# if need_select=true: STOP, show options, wait for user choice
 duix-cli avatar check
-duix-cli avatar create --coverImageUrl ./face.png --ttsName <selected> --language English [--name ...] [--greetings ...] [--profile ...]
+duix-cli avatar create --coverImageUrl ./face.png --ttsName <user-selected> --language English [--name ...] [--greetings ...] [--profile ...]
 duix-cli avatar status <task_id> -c
 ```
+
+### Agent must NOT
+
+- Treat `need_select=true` as create success  
+- Auto-select `options[0]` or invent `--ttsName`  
+- Call `avatar status` before a real `task_id` exists  
+
+See `SKILL.md` → **Agent Hard Rules (MUST)** for full constraints.
 
 ---
 
@@ -70,7 +79,6 @@ duix-cli avatar status <task_id> -c
 
 - `duix-cli` (Bun-based)
 - `DUIX_APP_ID` + `DUIX_APP_KEY`
-- `DUIX_API_KEY` when uploading local images
 - Portrait image **or** existing conversationId
 - Agent environment that supports skills
 
