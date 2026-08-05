@@ -2,110 +2,216 @@
 
 语言：中文 | [English](README.md)
 
-用于 AI Agent 的实时对话数字人技能。通过 **duix-cli** 创建数字人，并返回可直接打开的对话网页链接。
+用于 AI Agent 的实时对话数字人技能：上传人像照片，选择音色与语言，生成可实时交互对话的 AI 数字人网页链接。
 
 ---
 
 ## 快速开始
 
-### 一句话安装
+### 方式一：一句话安装（推荐）
 
-> 请帮我安装 duix-avatar-conversation skill：从 https://github.com/duixcom/duix-skills 克隆到 skills 目录，安装 `duix-cli`，并配置 `DUIX_APP_ID` / `DUIX_APP_KEY`。
+直接将以下提示词发送给你的 Agent，它会自动完成安装和配置：
 
-### 手动安装
+> 请帮我安装 duix-avatar-conversation skill：从 https://github.com/duixcom/duix-skills 克隆到 skills 目录，安装 duix-cli，并配置 DUIX_APP_ID 与 DUIX_APP_KEY（如果已设置环境变量则直接使用，否则提示我输入）。
+
+### 方式二：手动安装
 
 ```bash
+# 克隆到 Agent 的 skills 目录
 cd <your-agent-skills-path>
 git clone https://github.com/duixcom/duix-skills.git
 
+# 验证安装
+ls duix-skills/duix-avatar-conversation/SKILL.md
+duix-skills/duix-avatar-conversation/scripts/duix_run.sh
+
+# 从 npm 官方源安装 duix-cli
 npm i duix-cli -g --registry=https://registry.npmjs.org/
+
+# 可选：对比本地版本和官方 npm 包版本
+# 包页面：https://www.npmjs.com/package/duix-cli
 duix-cli --version
+npm view duix-cli version --registry=https://registry.npmjs.org/
 ```
+
+> **Agent 集成要求**：将 `duix-skills/duix-avatar-conversation` 放入 Agent 的 skills 目录并确保可发现 `duix-avatar-conversation/SKILL.md`。
 
 ### 配置凭证
 
 ```bash
+# macOS / Linux
+# 方式一：环境变量（推荐）
 export DUIX_APP_ID="your-app-id"
 export DUIX_APP_KEY="your-app-key"
 
-# 或
+# 方式二：交互式配置
 ./duix-avatar-conversation/scripts/duix_run.sh --config
+
+# Windows PowerShell
+# 方式一：临时设置
+$env:DUIX_APP_ID="your-app-id"
+$env:DUIX_APP_KEY="your-app-key"
+
+# 方式二：永久设置
+setx DUIX_APP_ID "your-app-id"
+setx DUIX_APP_KEY "your-app-key"
 ```
 
-avatar 相关命令**不需要** `DUIX_API_KEY`。
+> 🔑 **没有 APP ID / APP Key？** 前往 [API 密钥管理页面](https://www.duix.com/dashboard/duix-cli-skills/keys) 获取。  
+> 💰 **需要更多定制次数？** 前往 [Pricing 价格页面](https://www.duix.com/pricing) 查看套餐并充值。
+
+注意：avatar 相关命令**不需要** `DUIX_API_KEY`，仅需 `DUIX_APP_ID` 和 `DUIX_APP_KEY`。
 
 ---
 
 ## 包含内容
 
-| 工具 | duix-cli 命令 | 输出 |
-| --- | --- | --- |
-| `duix-avatar-conversation` | `duix-cli avatar create` | `task_id`（可能先返回音色下拉） |
-| `duix-get-avatar-create-result` | `duix-cli avatar status` | `conversation_url` |
+本项目主要包含两个核心 skill：
 
-**所有数据请求都在 duix-cli 内完成。**
+| Skill | 功能 | 输入 | 输出 |
+| --- | --- | --- | --- |
+| `duix-avatar-conversation` | 创建数字人训练任务 | 人像照片 + 音色 + 语言 + 可选名字、开场白、人设 | `task_id`（或先返回音色下拉） |
+| `duix-get-avatar-create-result` | 查询训练结果并返回对话链接 | `task_id` | `conversation_url` |
+
+关键文件：
+
+* **Skill 定义**：`duix-avatar-conversation/SKILL.md`
+* **执行脚本**：`duix-avatar-conversation/scripts/duix_run.sh`
 
 ---
 
-## 引导流程（Agent）
+## 工作原理
 
-1. 上传人像 → CLI 做比例校验 + imageCheck（格式/人脸）  
-2. **选择音色（硬门槛；有 `preview_url` 时先试听；禁止自动选）**  
-3. 选择语言（默认 English，可跳过）  
-4. 可选：名字 / 开场白 / 描述（均可跳过）  
-5. 确认扣减定制次数（不足则引导 https://www.duix.com/pricing）  
-6. 确认提交 → 开始生成（状态：制作中 / processing）  
-7. 成功：返回对话信息 + `conversation_url`；失败：失败原因 + **定制次数已退还**
-
-```bash
-# 1) 无音色：先图检，再拿下拉（含试听链接），然后停住
-./duix_run.sh run --coverImageUrl ./face.png --language English
-
-# 2) 用户选完音色后：会先 need_confirm，交互确认后再 --yes 提交并轮询
-./duix_run.sh run --coverImageUrl ./face.png --ttsName Echo --language English --name Ada
+```plaintext
+用户意图                                  输入素材                    交付结果
+   ↓                                         ↓                           ↓
+触发 duix-avatar-conversation      人像照片 + 音色 + 语言        对话网页链接
+                                        ↓
+                              ┌─────────────────────┐
+                              │  1. 上传人像照片      │
+                              │  2. 选择音色（硬门槛） │
+                              │  3. 选择语言          │
+                              │     （默认 English）  │
+                              │  4. 可选名字/开场白/人设 │
+                              │  5. 确认定制次数扣减  │
+                              │  6. 提交生成任务      │
+                              │  7. 轮询状态 → 成功   │
+                              └─────────────────────┘
 ```
 
-Helper 已对齐硬门槛：`need_select` → 停；`need_confirm` → 交互确认后才加 `--yes`。预检 `avatar check` 不会自动给 create 加 `--yes`。
+Agent 标准流程：
 
-### Agent 禁止事项
+1. **识别意图**：识别用户“创建一个能对话的数字人”意图
+2. **收集输入**：收集人像照片、音色偏好、语言、可选人设信息
+3. **音色选择**：首次 create 获取音色列表，等用户明确选择（硬门槛，禁止自动选）
+4. **配额确认**：携带音色再次 create，等待用户确认扣减定制次数（硬门槛，禁止自动确认）
+5. **提交生成**：用户确认后，携带 `--confirm 是` 最终提交，获取 `task_id`
+6. **轮询状态**：调用 status 轮询，直到返回 `conversation_url`
+7. **返回结果**：返回对话链接与使用说明
+8. **失败处理**：失败时展示原因，定制次数自动退还
 
-- 把 `need_select=true` / `need_confirm=true` 当成创建成功  
-- 自动选 `options[0]` 或自行编造 `--ttsName`  
-- 隐藏可用的试听链接  
-- 在没有真实 `task_id` 之前调用 `avatar status`  
-- 次数不足时不告知充值链接；失败时不告知次数已退还  
+---
 
-完整约束见 `SKILL.md` → **Agent Hard Rules (MUST)**。
+## 认证方式
+
+Agent 执行前需确认可用认证：
+
+* `DUIX_APP_ID` 与 `DUIX_APP_KEY` 已配置（环境变量或本地配置）
+
+推荐确认话术：
+
+> 我将使用 duix-avatar-conversation 创建实时对话数字人。  
+> 请提供一张人像照片（16:9 或 9:16），并确认是否要选择特定音色和语言。
+
+---
+
+## 可直接尝试
+
+### 提示词案例
+
+直接复制给 Agent 即可使用，必须提供人像照片路径（请替换为你本地的实际文件路径）：
+
+* 用 duix-avatar-conversation 读取 examples/demo_assets 下的 demo_avatar.png 人像照片，创建一个中文对话数字人。
+* 用 duix-avatar-conversation 把照片 C:\Users\YourName\avatar.png 生成一个英文对话数字人，名字叫 “Amy”，开场白是 “Hello, nice to meet you!”。
+* 我想创建一个产品讲解员数字人，用 https://github.com/duixcom/duix-skills/blob/main/duix-avatar-conversation/examples/assets/demo_face.jpg 这张照片，说中文，人设是专业客服风格。
+* 请用 https://github.com/duixcom/duix-skills/blob/main/duix-avatar-conversation/examples/assets/demo_face.jpg 这张照片生成一个教学助手数字人，语言选中文，开场白为 “同学们好，今天我们来学习新知识”。
+* 做一个人物采访风格的对话数字人，用 C:\Users\YourName\avatar.png 作为形象，英文对话，名字叫 “David”，语气要亲切自然。
+
+💡 提示：  
+将示例中的 `C:\Users\YourName\***` 替换为你电脑上的实际路径，例如 `D:\images\avatar.png`。  
+将示例中的 https://github.com/duixcom/duix-skills/blob/main/duix-avatar-conversation/examples/assets/demo_face.jpg 替换为你实际可访问的图片 URL。
+
+### 典型业务场景
+
+| 场景 | 输入 | 输出 | 价值 |
+| --- | --- | --- | --- |
+| **智能客服数字人** | 客服形象照片 + 专业音色 | 7×24 在线对话网页 | 降低人工客服成本 |
+| **产品讲解员** | 品牌代言人照片 + 亲和音色 | 产品介绍对话链接 | 提升用户互动体验 |
+| **虚拟教师** | 教师形象照片 + 温和音色 | 教学助手对话网页 | 实现个性化答疑 |
+| **品牌大使** | 统一形象照片 + 多语言音色 | 多语言对话数字人 | 覆盖全球用户群体 |
 
 ---
 
 ## 使用要求
 
-- 已安装 `duix-cli`（依赖 Bun）
-- 已配置 `DUIX_APP_ID` / `DUIX_APP_KEY`
-- 人像图片 **或** 已有 conversationId
-- 支持 skills 的 Agent 环境
+### 输入素材要求
+
+| 项目 | 要求 |
+| --- | --- |
+| 图片格式 | PNG、JPG、JPEG、WEBP |
+| 图片大小 | 不超过 10MB |
+| 图片比例 | 必须为 16:9 或 9:16 |
+| 图片内容 | 清晰正面人像，面部无遮挡，光线均匀 |
+| 人脸要求 | 必须包含且仅包含 1 张人脸，正脸、清晰、无遮挡 |
+| 语言 | 默认 English，支持 40+ 种语言（Chinese、Japanese、Korean 等） |
+| 定制次数 | 创建 1 个数字人消耗 1 次定制次数；余额不足时无法提交 |
+
+### 环境与配置检查清单
+
+* [ ] 输入图片满足上方格式、大小、比例和人脸要求
+* [ ] 支持 skills 的 Agent 环境（如 Cursor / Codex / OpenClaw 等）
+* [ ] 已配置 `DUIX_APP_ID` 与 `DUIX_APP_KEY`（[获取方式](https://www.duix.com/dashboard/duix-cli-skills/keys)）
+* [ ] 账户拥有足够的定制次数（[查看套餐](https://www.duix.com/pricing)）
 
 ---
 
-## 视频上传常见问题
+## 安全说明
 
-**Q：上传视频提示“当前输入内容存在安全风险，请修改后重试”**  
-A：平台会对上传视频的画面、文本、音频进行合规检测，若视频包含涉政、涉黄、涉恐、涉暴等违规内容，将触发安全风险提示。该报错大多由涉政内容导致，请自查并修改视频违规内容后重新上传即可。
+* 该 skill 仅处理你提供的本地输入素材与认证信息
+* **建议不要在公开日志中暴露完整的 `DUIX_APP_ID` / `DUIX_APP_KEY`**
+* 如需排查，优先分享脱敏后的错误信息（如 `task_id` 前几位）
 
-**Q：上传视频提示“请上传尺寸为9:16/16:9的视频”**  
-A：
-1. 核查视频比例规格：选中视频，鼠标右键点击【属性】-【详细信息】，查看帧宽度、帧高度。平台合规标准比例如下：720P（720×1280）、1080P（1080×1920）、2K（1440×2560）、4K（2160×3840），仅支持 9:16、16:9 两种比例。
-2. 排查浏览器问题：若视频比例无误仍提示异常，可能为浏览器兼容问题，建议更换谷歌浏览器后重试上传。
+---
 
-**Q：如何满足平台视频比例要求？**  
-A：可使用剪映等专业视频剪辑软件，导入原视频，调整画面比例为平台要求的 9:16 或 16:9，重新导出合规视频即可。
+## 常见问题
 
-**Q：视频比例正确，更换浏览器后仍无法上传怎么办？**  
-A：该情况多为视频编码异常导致。可将视频导入剪映等剪辑软件重新导出，导出时将视频编码选择为 H.264，导出完成后再次尝试上传。
+**Q: 安装后 Agent 找不到 skill？**  
+A: 确认 `duix-avatar-conversation/SKILL.md` 和 `duix-avatar-conversation/scripts/duix_run.sh` 在 skills 目录下，且 Agent 已重新加载 skills。
+
+**Q: 提示 “DUIX_APP_ID / DUIX_APP_KEY not found”？**  
+A: 检查环境变量是否生效，或重新运行 `./scripts/duix_run.sh --config` 进行交互式配置。如果还没有凭证，前往 [API 密钥管理页面](https://www.duix.com/dashboard/duix-cli-skills/keys) 获取。
+
+**Q: 状态一直是 processing，是不是卡住了？**  
+A: 不是卡住。`processing` 是正常的制作中状态，数字人生成通常需要几分钟时间。请继续轮询同一个 `task_id`，不要重新创建新任务，也不要告诉用户“任务卡死了”。
+
+**Q: 我需要学命令行吗？**  
+A: 不需要。你可以直接通过 Agent 对话完成安装、配置和使用，全程无需手动敲命令。
+
+**Q: 一个 task_id 可以多次查询吗？**  
+A: 可以。`task_id` 是永久有效的，你可以随时用 `avatar status <task_id>` 查询结果，即使之前已经查询过。
+
+**Q: 提示 “定制次数不足”（skill_code=40301）怎么办？**  
+A: 你的账号定制次数已用完，需要订阅套餐。前往 [Pricing 价格页面](https://www.duix.com/pricing) 充值后再次尝试即可。
+
+**Q: 制作失败了，定制次数会退还吗？**  
+A: 会退还。若数字人制作失败（skill_code=500），消耗的定制次数会自动退回你的账户余额。
+
+**Q: 可以修改已创建的数字人吗？**  
+A: 数字人创建成功后，在 Agent 工具中不支持直接修改参数（如更换音色、修改人设）。如需调整声音、语言、名字、开场白、人设，可以前往 [duix 网页工作台](https://newtest.duix.com/dashboard/my-avatar) 进行修改；若想在 Agent 工具中修改，需要重新创建一个新的数字人任务。
 
 ---
 
 ## 技术支持
 
-- 联系邮箱：support@duix.com
+* 💬 联系邮箱：support@duix.com
+* 🐛 问题反馈：请提供 `task_id`、完整的 CLI 输出日志、以及出错时的操作步骤
