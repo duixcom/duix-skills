@@ -8,7 +8,7 @@ description: >-
   realtime conversational avatar, custom digital human, talking avatar chat,
   interactive digital human, 实时对话数字人, 定制数字人对话, or mentions
   duix-avatar-conversation / duix-get-avatar-create-result.
-version: 1.2.7
+version: 1.2.8
 author: duix
 compatibility: openclaw, cursor, copilot, claude-code, codex, gemini
 tags: [duix, avatar, conversation, realtime, digital-human, chat, tts, duix-cli]
@@ -50,7 +50,7 @@ These rules override convenience. Violating them is a skill failure.
 1. **Never skip TTS selection.** Providing only an image is not enough to submit.
 2. **Never auto-pick a voice.** Do not choose `options[0]`, a “default”, a guessed name, or any value the user did not explicitly select.
 3. **Never invent `--ttsName`.** It must come from CLI dropdown `options[].value` (or `label` only if value is absent) after user choice.
-4. **Offer TTS preview when available.** If an option has `preview_url` / `url` / `exampleAudioUrl`, show it and invite the user to listen before choosing.
+4. **Always surface TTS preview audio when listing voices.** If an option has `preview_url` / `url` / `exampleAudioUrl`, you **MUST** put that audio URL in the same list item as the voice name (clickable markdown link). Never list names only and hide/defer previews. Invite the user to listen before choosing.
 5. **`need_select` is not success.** If create returns `needSelect=true` / `need_select=true`, generation has **not** started. There is usually **no** `task_id`. Stop and wait for the user.
 6. **`need_confirm` is not success.** For custom images, create returns `need_confirm=true` until the user replies 是. Do **not** pass `--confirm 是` / `--yes` unless the user explicitly confirmed.
 7. **Never auto-confirm quota deduction.**
@@ -114,22 +114,32 @@ duix-cli avatar create --coverImageUrl "<image>"
 | Signal | Meaning | Required agent action |
 | --- | --- | --- |
 | Image check failure / `40002` | Portrait invalid | **STOP.** Show reason. Ask for a new image. |
-| `data.needSelect=true` **or** `data.skillPayload.need_select=true` | TTS dropdown required; create **not** submitted | **STOP.** Show options (+ preview links). Wait. |
+| `data.needSelect=true` **or** `data.skillPayload.need_select=true` | TTS dropdown required; create **not** submitted | **STOP.** List every option with name + 试听 audio link (when `preview_url` exists). Wait. |
 | `data.skillPayload.skill_code=100` and no `task_id` | Intermediate soft state (select / confirm) | Inspect `need_select` / `need_confirm`; do not treat as created |
 | `data.taskId` / `data.skillPayload.data.task_id` present | Create actually submitted | Only then proceed to status polling |
 
 When `need_select` is true:
 
 1. Extract `data.options` or `data.skillPayload.data.options`
-2. For each option, show `label`/`value`, and if present show **试听** link from `preview_url` / `url` / `exampleAudioUrl`
+2. **List every option.** For each option, show index + `label`/`value`, and if it has preview audio (`preview_url` / `url` / `exampleAudioUrl`), **include a clickable 试听 / Preview link in that same line**
 3. Ask the user to listen (when a link exists) and then pick one
 4. Wait for an explicit user reply that maps to one option
 5. Only then store `--ttsName <selected option value>`
 6. Do **not** proceed to language/persona/quota/submit until this is done
 
+**Required listing format (preview MUST appear next to the voice when present):**
+
+```text
+1. Echo — [试听](https://.../echo.wav)
+2. Aria — [试听](https://.../aria.wav)
+3. Nova — (no preview)
+```
+
+Do **not** collapse to “here are N voices” without the audio links. Do **not** put all preview URLs in a separate footnote after the names — keep name + audio together so the user can try each voice while choosing.
+
 Prompt:
 
-> Please choose one voice from the list below. Where a preview link is shown, you can open it to listen first. Reply with the voice name/number. I cannot choose for you.
+> Please choose one voice from the list below. Click 试听 / Preview next to a voice to listen first, then reply with the voice name or number. I cannot choose for you.
 
 **Forbidden in this step:**
 
@@ -137,7 +147,8 @@ Prompt:
 - Re-running create with a guessed `--ttsName` before the user answers
 - Telling the user “generation started” after a `need_select` response
 - Jumping to `avatar status`
-- Hiding available preview URLs from the user
+- Listing voice names **without** their preview audio URLs when those URLs exist
+- Omitting, truncating, or “summarizing away” available  `url` / `exampleAudioUrl`
 
 ### Step 3: Select language (default English, can skip)
 
@@ -354,7 +365,7 @@ Common flags:
 
 1. Follow this order only: image (+ check) → **user TTS select (with preview)** → language → optional persona → quota confirm → submit → generate
 2. Ask optional fields proactively, and allow "skip"
-3. TTS names must come from the CLI dropdown **and the user's explicit choice** — never auto-pick
+3. TTS names must come from the CLI dropdown **and the user's explicit choice** — never auto-pick; when listing options, always attach preview audio links beside names when available
 4. `need_select=true` means stop; it is not “create succeeded”
 5. For custom images, create returns `need_confirm=true` until user replies 是; only then re-run with `--confirm 是` / `--yes` — never auto-confirm
 6. **`processing` means "still generating", not stuck** — keep polling the same `task_id`; never recreate or declare failure just because status is `processing`
@@ -377,7 +388,7 @@ create (--ttsName --yes) → task_id → status -c
 
 Rules:
 
-1. **`need_select`** means you must already have an **explicit user-chosen** `ttsName` before the next create. Never auto-pick `options[0]`. Show `preview_url` when present.
+1. **`need_select`** means you must already have an **explicit user-chosen** `ttsName` before the next create. Never auto-pick `options[0]`. When listing options, always include each option’s `url` / `exampleAudioUrl` as a clickable 试听 link beside the name.
 2. **`need_confirm`** means non-interactive scripts **must not** pre-pass `--yes`. Trigger one create without `--confirm`, show the platform confirm message, then only after the user answers 是 submit again with `--yes`.
 3. `avatar check` is an **early preview** only. Passing preview confirmation must never auto-append `--yes` to create.
 4. Helper script reference: `scripts/duix_run.sh run --coverImageUrl <path> --ttsName <user-selected> ...`
@@ -386,6 +397,7 @@ Rules:
 
 | Updated At | Version | Changes |
 | --- | --- | --- |
+| 2026-08-06 | v1.2.8 | Harden TTS list UX: every option with preview audio must show a clickable 试听 link beside the name |
 | 2026-08-05 | v1.2.7 | Align business flow: imageCheck before TTS; TTS preview URLs; recharge + refund + full success deliverable |
 | 2026-08-05 | v1.2.6 | Fix `duix_run.sh` helper: handle `need_confirm`, full options, summary, 40301; add automation notes |
 | 2026-08-05 | v1.2.5 | Create hard-gates custom quota confirm (`need_confirm` → `--confirm 是` / `--yes`) |
