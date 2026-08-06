@@ -144,9 +144,11 @@ Exact compatibility and prerequisites depend on each skill's README.
 ## ❓ FAQ
 
 **Q: Can I install and use both skills at the same time?**
+
 A: Yes. They share the same `duix-cli`, but use different credentials and billing systems, so they do not conflict.
 
 **Q: The agent cannot find the skills after installation. What should I do?**
+
 A: Confirm these files exist under the skills directory:
 
 ```text
@@ -159,6 +161,7 @@ duix-skills/duix-avatar-video-generation/scripts/duix_run.sh
 Then ask the agent to reload skills.
 
 **Q: What if `duix-cli` installation fails?**
+
 A: Make sure Node.js is ≥ 18, then install from the official registry:
 
 ```bash
@@ -166,6 +169,7 @@ npm i duix-cli -g --registry=https://registry.npmjs.org/
 ```
 
 **Q: Can the two skills share the same credentials?**
+
 A: No.
 
 - `duix-avatar-conversation` needs `DUIX_APP_ID` + `DUIX_APP_KEY`
@@ -174,6 +178,7 @@ A: No.
 Get them from the corresponding console pages.
 
 **Q: How do I check account balance?**
+
 A:
 
 - conversation custom quota: `duix-cli avatar check`

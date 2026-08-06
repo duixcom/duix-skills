@@ -144,9 +144,11 @@ ls duix-skills/*/README_zh.md
 ## ❓ 常见问题
 
 **Q: 两个 Skill 可以同时安装使用吗？**
+
 A: 可以。它们共享同一个 `duix-cli`，但使用不同的凭证和计费体系，互不冲突。
 
 **Q: 安装后 Agent 找不到 Skill？**
+
 A: 确认以下文件存在于 skills 目录：
 
 ```text
@@ -159,6 +161,7 @@ duix-skills/duix-avatar-video-generation/scripts/duix_run.sh
 然后让 Agent 重新加载 skills。
 
 **Q: duix-cli 安装失败怎么办？**
+
 A: 确保 Node.js ≥ 18，并尝试使用官方源安装：
 
 ```bash
@@ -166,6 +169,7 @@ npm i duix-cli -g --registry=https://registry.npmjs.org/
 ```
 
 **Q: 两个 Skill 的凭证可以共用吗？**
+
 A: 不可以。
 
 - `duix-avatar-conversation` 需要 `DUIX_APP_ID` + `DUIX_APP_KEY`
@@ -174,6 +178,7 @@ A: 不可以。
 请分别前往对应的控制台页面获取。
 
 **Q: 如何查看账户余额？**
+
 A:
 
 - conversation 定制次数：`duix-cli avatar check`
