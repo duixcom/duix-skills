@@ -57,7 +57,7 @@ setx DUIX_APP_ID "your-app-id"
 setx DUIX_APP_KEY "your-app-key"
 ```
 
-> **No APP ID / APP Key?** Get them from the [API Key management page](https://www.duix.com/dashboard/duix-cli-skills/keys).  
+> **No APP ID / APP Key?** Get them from the [API Key management page](https://www.duix.com/dashboard/avatar-conversation/apikeys).
 > **Need more custom quota?** Visit the [Pricing page](https://www.duix.com/pricing) to view plans and recharge.
 
 Note: avatar commands do **not** need `DUIX_API_KEY`. Only `DUIX_APP_ID` and `DUIX_APP_KEY` are required.
@@ -122,7 +122,7 @@ Before execution, the agent must confirm that authentication is available:
 
 Recommended confirmation message:
 
-> I will use duix-avatar-conversation to create a realtime conversational digital human.  
+> I will use duix-avatar-conversation to create a realtime conversational digital human.
 > Please provide a portrait photo (16:9 or 9:16), and confirm whether you want a specific voice and language.
 
 ---
@@ -139,8 +139,8 @@ Copy any of these directly into your agent. You must provide a portrait photo pa
 * Please use https://github.com/duixcom/duix-skills/blob/main/duix-avatar-conversation/examples/assets/demo_face.jpg to create a teaching-assistant digital human in Chinese, with the greeting "Hello class, let's learn something new today".
 * Create an interview-style conversational digital human using `C:\Users\YourName\avatar.png`, English chat, named "David", with a warm and natural tone.
 
-Tip:  
-Replace `C:\Users\YourName\***` in the examples with an actual path on your computer, such as `D:\images\avatar.png`.  
+Tip:
+Replace `C:\Users\YourName\***` in the examples with an actual path on your computer, such as `D:\images\avatar.png`.
 Replace https://github.com/duixcom/duix-skills/blob/main/duix-avatar-conversation/examples/assets/demo_face.jpg with an image URL you can actually access.
 
 ### Typical Business Scenarios
@@ -172,7 +172,7 @@ Replace https://github.com/duixcom/duix-skills/blob/main/duix-avatar-conversatio
 
 * [ ] Input image meets the format, size, ratio, and face requirements above
 * [ ] Agent environment that supports skills, such as Cursor, Codex, or OpenClaw
-* [ ] `DUIX_APP_ID` and `DUIX_APP_KEY` configured ([how to get them](https://www.duix.com/dashboard/duix-cli-skills/keys))
+* [ ] `DUIX_APP_ID` and `DUIX_APP_KEY` configured ([how to get them](https://www.duix.com/dashboard/avatar-conversation/apikeys))
 * [ ] Account has enough custom quota ([view plans](https://www.duix.com/pricing))
 
 ---
@@ -187,28 +187,28 @@ Replace https://github.com/duixcom/duix-skills/blob/main/duix-avatar-conversatio
 
 ## FAQ
 
-**Q: The agent cannot find the skill after installation. What should I do?**  
+**Q: The agent cannot find the skill after installation. What should I do?**
 A: Confirm that `duix-avatar-conversation/SKILL.md` and `duix-avatar-conversation/scripts/duix_run.sh` are under the skills directory, and that the agent has reloaded skills.
 
-**Q: It says "DUIX_APP_ID / DUIX_APP_KEY not found". What should I do?**  
-A: Check whether the environment variables have taken effect, or rerun `./scripts/duix_run.sh --config` for interactive setup. If you do not have credentials yet, get them from the [API Key management page](https://www.duix.com/dashboard/duix-cli-skills/keys).
+**Q: It says "DUIX_APP_ID / DUIX_APP_KEY not found". What should I do?**
+A: Check whether the environment variables have taken effect, or rerun `./scripts/duix_run.sh --config` for interactive setup. If you do not have credentials yet, get them from the [API Key management page](https://www.duix.com/dashboard/avatar-conversation/apikeys).
 
-**Q: Status stays at `processing`. Is it stuck?**  
+**Q: Status stays at `processing`. Is it stuck?**
 A: No. `processing` means generation is in progress and usually takes a few minutes. Keep polling the same `task_id`. Do not create a new task, and do not tell the user the task is stuck.
 
-**Q: Do I need to learn the command line?**  
+**Q: Do I need to learn the command line?**
 A: No. You can complete installation, configuration, and usage directly through an agent conversation without manually typing commands.
 
-**Q: Can I query the same `task_id` more than once?**  
+**Q: Can I query the same `task_id` more than once?**
 A: Yes. `task_id` remains valid permanently. You can run `avatar status <task_id>` anytime, even after a previous successful query.
 
-**Q: It says custom quota is insufficient (`skill_code=40301`). What should I do?**  
+**Q: It says custom quota is insufficient (`skill_code=40301`). What should I do?**
 A: Your custom quota is used up. Subscribe or recharge on the [Pricing page](https://www.duix.com/pricing), then try again.
 
-**Q: If generation fails, is the custom quota refunded?**  
+**Q: If generation fails, is the custom quota refunded?**
 A: Yes. When digital-human creation fails (`skill_code=500`), the consumed custom quota is automatically returned to your balance.
 
-**Q: Can I edit a digital human after it is created?**  
+**Q: Can I edit a digital human after it is created?**
 A: After creation succeeds, the agent tools do not support direct parameter edits (for example changing voice or persona). To adjust voice, language, name, greeting, or profile, use the [duix web workbench](https://newtest.duix.com/dashboard/my-avatar). To change them from the agent tools, create a new digital-human task.
 
 ---

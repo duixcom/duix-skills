@@ -57,8 +57,8 @@ setx DUIX_APP_ID "your-app-id"
 setx DUIX_APP_KEY "your-app-key"
 ```
 
-> 🔑 **没有 APP ID / APP Key？** 前往 [API 密钥管理页面](https://www.duix.com/dashboard/duix-cli-skills/keys) 获取。  
-> 💰 **需要更多定制次数？** 前往 [Pricing 价格页面](https://www.duix.com/pricing) 查看套餐并充值。
+> 🔑 **没有 APP ID / APP Key？** 前往 [API 密钥管理页面](https://www.duix.com/dashboard/avatar-conversation/apikeys) 获取。
+> 💰 **需要更多定制次数？** 前往 [Pricing 价格页面](https://www.duix.com/dashboard/avatar-conversation/pricing) 查看套餐并充值。
 
 注意：avatar 相关命令**不需要** `DUIX_API_KEY`，仅需 `DUIX_APP_ID` 和 `DUIX_APP_KEY`。
 
@@ -120,7 +120,7 @@ Agent 执行前需确认可用认证：
 
 推荐确认话术：
 
-> 我将使用 duix-avatar-conversation 创建实时对话数字人。  
+> 我将使用 duix-avatar-conversation 创建实时对话数字人。
 > 请提供一张人像照片（16:9 或 9:16），并确认是否要选择特定音色和语言。
 
 ---
@@ -137,8 +137,8 @@ Agent 执行前需确认可用认证：
 * 请用 https://github.com/duixcom/duix-skills/blob/main/duix-avatar-conversation/examples/assets/demo_face.jpg 这张照片生成一个教学助手数字人，语言选中文，开场白为 “同学们好，今天我们来学习新知识”。
 * 做一个人物采访风格的对话数字人，用 C:\Users\YourName\avatar.png 作为形象，英文对话，名字叫 “David”，语气要亲切自然。
 
-💡 提示：  
-将示例中的 `C:\Users\YourName\***` 替换为你电脑上的实际路径，例如 `D:\images\avatar.png`。  
+💡 提示：
+将示例中的 `C:\Users\YourName\***` 替换为你电脑上的实际路径，例如 `D:\images\avatar.png`。
 将示例中的 https://github.com/duixcom/duix-skills/blob/main/duix-avatar-conversation/examples/assets/demo_face.jpg 替换为你实际可访问的图片 URL。
 
 ### 典型业务场景
@@ -170,8 +170,8 @@ Agent 执行前需确认可用认证：
 
 * [ ] 输入图片满足上方格式、大小、比例和人脸要求
 * [ ] 支持 skills 的 Agent 环境（如 Cursor / Codex / OpenClaw 等）
-* [ ] 已配置 `DUIX_APP_ID` 与 `DUIX_APP_KEY`（[获取方式](https://www.duix.com/dashboard/duix-cli-skills/keys)）
-* [ ] 账户拥有足够的定制次数（[查看套餐](https://www.duix.com/pricing)）
+* [ ] 已配置 `DUIX_APP_ID` 与 `DUIX_APP_KEY`（[获取方式](https://www.duix.com/dashboard/avatar-conversation/apikeys)）
+* [ ] 账户拥有足够的定制次数（[查看套餐](https://www.duix.com/dashboard/avatar-conversation/pricing)）
 
 ---
 
@@ -185,29 +185,29 @@ Agent 执行前需确认可用认证：
 
 ## 常见问题
 
-**Q: 安装后 Agent 找不到 skill？**  
+**Q: 安装后 Agent 找不到 skill？**
 A: 确认 `duix-avatar-conversation/SKILL.md` 和 `duix-avatar-conversation/scripts/duix_run.sh` 在 skills 目录下，且 Agent 已重新加载 skills。
 
-**Q: 提示 “DUIX_APP_ID / DUIX_APP_KEY not found”？**  
-A: 检查环境变量是否生效，或重新运行 `./scripts/duix_run.sh --config` 进行交互式配置。如果还没有凭证，前往 [API 密钥管理页面](https://www.duix.com/dashboard/duix-cli-skills/keys) 获取。
+**Q: 提示 “DUIX_APP_ID / DUIX_APP_KEY not found”？**
+A: 检查环境变量是否生效，或重新运行 `./scripts/duix_run.sh --config` 进行交互式配置。如果还没有凭证，前往 [API 密钥管理页面](https://www.duix.com/dashboard/avatar-conversation/apikeys) 获取。
 
-**Q: 状态一直是 processing，是不是卡住了？**  
+**Q: 状态一直是 processing，是不是卡住了？**
 A: 不是卡住。`processing` 是正常的制作中状态，数字人生成通常需要几分钟时间。请继续轮询同一个 `task_id`，不要重新创建新任务，也不要告诉用户“任务卡死了”。
 
-**Q: 我需要学命令行吗？**  
+**Q: 我需要学命令行吗？**
 A: 不需要。你可以直接通过 Agent 对话完成安装、配置和使用，全程无需手动敲命令。
 
-**Q: 一个 task_id 可以多次查询吗？**  
+**Q: 一个 task_id 可以多次查询吗？**
 A: 可以。`task_id` 是永久有效的，你可以随时用 `avatar status <task_id>` 查询结果，即使之前已经查询过。
 
-**Q: 提示 “定制次数不足”（skill_code=40301）怎么办？**  
-A: 你的账号定制次数已用完，需要订阅套餐。前往 [Pricing 价格页面](https://www.duix.com/pricing) 充值后再次尝试即可。
+**Q: 提示 “定制次数不足”（skill_code=40301）怎么办？**
+A: 你的账号定制次数已用完，需要订阅套餐。前往 [Pricing 价格页面](https://www.duix.com/dashboard/avatar-conversation/pricing) 充值后再次尝试即可。
 
-**Q: 制作失败了，定制次数会退还吗？**  
+**Q: 制作失败了，定制次数会退还吗？**
 A: 会退还。若数字人制作失败（skill_code=500），消耗的定制次数会自动退回你的账户余额。
 
-**Q: 可以修改已创建的数字人吗？**  
-A: 数字人创建成功后，在 Agent 工具中不支持直接修改参数（如更换音色、修改人设）。如需调整声音、语言、名字、开场白、人设，可以前往 [duix 网页工作台](https://newtest.duix.com/dashboard/my-avatar) 进行修改；若想在 Agent 工具中修改，需要重新创建一个新的数字人任务。
+**Q: 可以修改已创建的数字人吗？**
+A: 数字人创建成功后，在 Agent 工具中不支持直接修改参数（如更换音色、修改人设）。如需调整声音、语言、名字、开场白、人设，可以前往 [duix 网页工作台](https://www.duix.com/dashboard/my-avatar) 进行修改；若想在 Agent 工具中修改，需要重新创建一个新的数字人任务。
 
 ---
 

@@ -51,31 +51,31 @@ save_config() {
 # Config via argument or interactive
 set_config() {
     local key="$1"
-    
+
     echo -e "${CYAN}=== Digital Human Configuration ===${NC}"
     echo ""
-    
+
     if [ -n "$key" ]; then
         save_config "$key"
     else
         echo "Please enter DUIX_API_KEY:"
         read -p "> " key
-        
+
         if [ -z "$key" ]; then
             print_warning_title "Error: API Key cannot be empty"
             exit 1
         fi
-        
+
         save_config "$key"
     fi
-    
+
     echo ""
 }
 
 # Check config or prompt
 ensure_api_key() {
     load_config
-    
+
     if [ -z "$DUIX_API_KEY" ]; then
         echo -e "${YELLOW}API Key was not detected. Please configure it first.${NC}"
         echo -e "Usage: $0 --config <api_key>"
@@ -83,7 +83,7 @@ ensure_api_key() {
         echo ""
         set_config
     fi
-    
+
     MASKED_KEY="${DUIX_API_KEY:0:6}***${DUIX_API_KEY: -4}"
     echo -e "API Key: ${GREEN}$MASKED_KEY${NC}"
 }
@@ -404,7 +404,7 @@ print_compose_check_rejection() {
             print_warning_title 'Audio duration exceeds plan limit'
             printf 'Current audio duration: %s minutes\n' "${audio_duration_minutes:-Unknown}"
             printf 'Your %s plan limit: %s minutes\n' "${grade_name:-Unknown}" "${duration_minutes:-Unknown}"
-            printf '%s\n' 'To synthesize longer videos, please upgrade your plan: https://newtest.duix.com/dashboard/duix-cli-skills/pricing'
+            printf '%s\n' 'To synthesize longer videos, please upgrade your plan: https://www.duix.com/dashboard/avatar-video-generation/pricing'
             ;;
         *unsupported*format*|*supportedformats*|*currentformat*)
             print_warning_title 'Unsupported video format'
@@ -579,7 +579,7 @@ print_success_result() {
     echo ""
     echo "Credit Usage:"
     echo "  - Credits consumed by this video: ${required_credits:-Unknown} credits"
-    echo "  - Remaining credits: ${credits_left:-Unknown} credits ([Recharge](https://www.duix.com/dashboard/duix-cli-skills/pricing))"
+    echo "  - Remaining credits: ${credits_left:-Unknown} credits ([Recharge](https://www.duix.com/dashboard/avatar-video-generation/pricing))"
 }
 
 print_failure_result() {
@@ -600,7 +600,7 @@ print_failure_result() {
     echo "  - For video issues: check whether the video is front-facing, clear, unobstructed, and within the supported resolution range"
     echo "  - For audio issues: confirm the audio format is MP3/WAV and can be played normally"
     echo "  - For network issues: retry later or check the network connection"
-    echo "  - For credit issues: go to the [DUIX recharge page](https://www.duix.com/dashboard/duix-cli-skills/pricing) to recharge"
+    echo "  - For credit issues: go to the [DUIX recharge page](https://www.duix.com/dashboard/avatar-video-generation/pricing) to recharge"
     echo ""
     echo "To retry, confirm the source assets and submit again."
 }
@@ -757,7 +757,7 @@ while true; do
         print_failure_result "Polling timed out before the task completed"
         exit 1
     fi
-    
+
     log "Poll #$POLL_COUNT: Querying status..."
     if ! STATUS_JSON=$(duix-cli compose status "$TASK_ID" 2>&1); then
         log "ERROR: Failed to query task status"
@@ -767,7 +767,7 @@ while true; do
         print_failure_result "Failed to query task status"
         exit 1
     fi
-    
+
     # Extract status from JSON
     STATUS=$(json_value "$STATUS_JSON" "status")
     PROGRESS=$(json_value "$STATUS_JSON" "progress")
@@ -781,23 +781,23 @@ while true; do
         print_failure_result "Failed to parse task status"
         exit 1
     fi
-    
+
     log "Status: $STATUS ($STATUS_DESC) | Progress: ${PROGRESS}%"
     log_json "STATUS RESPONSE #$POLL_COUNT" "$STATUS_JSON"
-    
+
     echo "Status: $STATUS ($STATUS_DESC) | Progress: ${PROGRESS}%"
-    
+
     # Check completed
     if [ "$STATUS" = "SUCCEEDED" ]; then
         log "[STEP 3] Task completed! Starting download..."
-        
+
         OUTPUT_URL=$(json_value "$STATUS_JSON" "outputUrl")
         log "Output URL: $OUTPUT_URL"
-        
+
         echo ""
         echo -e "${GREEN}Task completed!${NC}"
         echo -e "${YELLOW}Downloading...${NC}"
-        
+
         # Step 3: Download
         if ! DOWNLOAD_RESULT=$(duix-cli compose download "$TASK_ID" 2>&1); then
             log "ERROR: Failed to download result"
@@ -807,16 +807,16 @@ while true; do
             print_failure_result "Failed to download result"
             exit 1
         fi
-        
+
         log_json "DOWNLOAD RESPONSE" "$DOWNLOAD_RESULT"
-        
+
         # Extract downloaded file path
         OUTPUT_FILE=$(json_value "$DOWNLOAD_RESULT" "downloadedFilePath")
-        
+
         if [ -n "$OUTPUT_FILE" ] && [ -f "$OUTPUT_FILE" ]; then
             FILE_SIZE=$(ls -lh "$OUTPUT_FILE" | awk '{print $5}')
             log "Downloaded: $OUTPUT_FILE ($FILE_SIZE)"
-            
+
             echo ""
             echo -e "${GREEN}Download complete!${NC}"
             echo -e "${GREEN}Output: $OUTPUT_FILE${NC}"
@@ -830,26 +830,26 @@ while true; do
             print_failure_result "Downloaded output file was not found locally"
             exit 1
         fi
-        
+
         echo ""
         echo -e "${GREEN}Log: $LOG_FILE${NC}"
         log "=== Digital Human Run Completed ==="
         print_success_result "$OUTPUT_FILE"
         break
     fi
-    
+
     # Check failed
     if [ "$STATUS" = "FAILED" ]; then
         FAILURE_REASON=$(failure_reason_from_json "$STATUS_JSON")
         log "ERROR: Task failed - $FAILURE_REASON"
         log_json "ERROR RESPONSE" "$STATUS_JSON"
         log "=== Digital Human Run Failed ==="
-        
+
         echo ""
         echo -e "${RED}Log: $LOG_FILE${NC}"
         print_failure_result "$FAILURE_REASON"
         exit 1
     fi
-    
+
     sleep "$POLL_INTERVAL"
 done

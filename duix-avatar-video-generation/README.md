@@ -54,7 +54,7 @@ $env:DUIX_API_KEY="your-api-key-here"
 setx DUIX_API_KEY "your-api-key-here"
 ```
 
-> **No API key?** Get one from the [API Key management page](https://www.duix.com/dashboard/duix-cli-skills/keys). **Need more credits?** Visit the [Pricing page](https://www.duix.com/dashboard/duix-cli-skills/pricing) to view plans and recharge.
+> **No API key?** Get one from the [API Key management page](https://www.duix.com/dashboard/avatar-conversation/apikeys). **Need more credits?** Visit the [Pricing page](https://www.duix.com/dashboard/avatar-conversation/pricing) to view plans and recharge.
 
 ---
 
@@ -147,7 +147,7 @@ Replace `https://duix.com/video/spokesperson.mp4` in the examples with your actu
 
 * [ ] Input video and audio meet the format, size, resolution, ratio, face, speech, and plan-duration requirements above
 * [ ] Agent environment that supports skills, such as Cursor, Codex, or OpenClaw
-* [ ] `DUIX_API_KEY` configured ([how to get one](https://www.duix.com/dashboard/duix-cli-skills/keys))
+* [ ] `DUIX_API_KEY` configured ([how to get one](https://www.duix.com/dashboard/avatar-video-generation/apikeys))
 
 ---
 
@@ -161,25 +161,25 @@ Replace `https://duix.com/video/spokesperson.mp4` in the examples with your actu
 
 ## FAQ
 
-**Q: Do I need to learn the command line?**  
+**Q: Do I need to learn the command line?**
 A: No. You can complete installation, configuration, and usage directly through an agent conversation without manually typing commands.
 
-**Q: The agent cannot find the skill after installation. What should I do?**  
+**Q: The agent cannot find the skill after installation. What should I do?**
 A: Confirm that `duix-avatar-video-generation/SKILL.md` and `duix-avatar-video-generation/scripts/duix_run.sh` are under the skills directory, and that the agent has reloaded skills.
 
-**Q: It says "DUIX_API_KEY not found". What should I do?**  
-A: Check whether the environment variable has taken effect, or reconfigure the local config file. If you do not have a key yet, get one from the [API Key management page](https://www.duix.com/dashboard/duix-cli-skills/keys).
+**Q: It says "DUIX_API_KEY not found". What should I do?**
+A: Check whether the environment variable has taken effect, or reconfigure the local config file. If you do not have a key yet, get one from the [API Key management page](https://www.duix.com/dashboard/avatar-video-generation/apikeys).
 
-**Q: How are credits calculated?**  
-A: Calls initiated through Skills use the credits of the logged-in account. For specific billing standards, see the [Pricing page](https://www.duix.com/dashboard/duix-cli-skills/pricing).
+**Q: How are credits calculated?**
+A: Calls initiated through Skills use the credits of the logged-in account. For specific billing standards, see the [Pricing page](https://www.duix.com/dashboard/avatar-video-generation/pricing).
 
-**Q: What if I do not have enough credits?**  
-A: Visit the [Pricing page](https://www.duix.com/dashboard/duix-cli-skills/pricing) to view plans and recharge.
+**Q: What if I do not have enough credits?**
+A: Visit the [Pricing page](https://www.duix.com/dashboard/avatar-video-generation/pricing) to view plans and recharge.
 
-**Q: What if the generation task is slow?**  
+**Q: What if the generation task is slow?**
 A: Video generation can take a long time. Even short-video tasks may wait for more than ten minutes or longer, and peak periods can be slower. Wait patiently or retry outside peak hours.
 
-**Q: Will failed tasks consume compute credits?**  
+**Q: Will failed tasks consume compute credits?**
 A: In general, generation failures, review blocks, model exceptions, and similar cases may have a refund mechanism, but do not treat "failed tasks never consume credits" as a fixed promise. If you suspect an incorrect deduction, keep the project link, node information, task time, and failure reason, then report them to the official support team.
 
 ---

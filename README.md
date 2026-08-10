@@ -81,7 +81,7 @@ ls duix-skills/*/README.md
 
 💰 **Need to recharge?**
 
-- conversation custom quota: [Pricing page](https://www.duix.com/avatar-conversation/pricing)
+- conversation custom quota: [Pricing page](https://www.duix.com/dashboard/avatar-conversation/pricing)
 - video-generation credits: [Pricing page](https://www.duix.com/dashboard/avatar-video-generation/pricing)
 
 ---

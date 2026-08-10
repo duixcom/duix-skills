@@ -53,7 +53,7 @@ $env:DUIX_API_KEY="your-api-key-here"
 setx DUIX_API_KEY "your-api-key-here"
 
 ```
-> 🔑 **没有 API Key？** 前往 [API Key 管理页面](https://www.duix.com/dashboard/duix-cli-skills/keys) 获取。   💰 **需要更多积分？** 前往 [Pricing 价格页面](https://www.duix.com/dashboard/duix-cli-skills/pricing) 查看套餐并充值。
+> 🔑 **没有 API Key？** 前往 [API Key 管理页面](https://www.duix.com/dashboard/avatar-video-generation/apikeys) 获取。   💰 **需要更多积分？** 前往 [Pricing 价格页面](https://www.duix.com/dashboard/avatar-video-generation/pricing) 查看套餐并充值。
 
 ---
 
@@ -68,9 +68,9 @@ setx DUIX_API_KEY "your-api-key-here"
 关键文件：
 
 *   **Skill 定义**：`duix-avatar-video-generation/SKILL.md`
-    
+
 *   **执行脚本**：`duix-avatar-video-generation/scripts/duix_run.sh`
-    
+
 
 ---
 
@@ -86,15 +86,15 @@ setx DUIX_API_KEY "your-api-key-here"
 Agent 标准流程：
 
 1.  **识别意图**：识别用户"让人物开口说话"意图
-    
+
 2.  **收集输入**：收集 `video`/`audio`/`output` 三类输入
-    
+
 3.  **执行生成**：调用 skill 执行并等待完成
-    
+
 4.  **返回结果**：返回结果路径与简短说明
-    
+
 5.  **失败重试**：失败时给出可执行重试建议
-    
+
 
 ---
 
@@ -103,7 +103,7 @@ Agent 标准流程：
 Agent 执行前需确认可用认证：
 
 *   `DUIX_API_KEY` 已配置（环境变量或本地配置）
-    
+
 
 推荐确认话术：
 
@@ -120,12 +120,12 @@ Agent 执行前需确认可用认证：
 * 用 duix-avatar-video-generation 读取 examples/demo_assets 下的 demo_avatar.mp4 人物视频与 demo_voice.wav 配音音频，合成对口型口播视频。
 
 * 用 duix-avatar-video-generation 把视频 C:\Users\YourName\Videos\person.mp4 和音频 C:\Users\YourName\Audio\voice.wav 合成口播视频。
-    
+
 * 我想做一条产品介绍视频，让 https://duix.com/video/spokesperson.mp4 里的人物按 https://duix.com/audio\intro.mp3 这段音频说话。
-    
+
 * 请用 https://duix.com/video/avatar.mp4 这个人物视频，分别用 C:\Users\YourName\Audio\script_a.mp3、C:\Users\YourName\Audio\script_b.mp3、C:\Users\YourName\Audio\script_c.mp3 三段音频生成 3 个外呼版本。
-    
-* 做一条运营周报视频，用 C:\Users\YourName\Videos\reporter.mp4 作为人物，按 C:\Users\YourName\Audio\weekly_report.mp3 说话，语气自然。  
+
+* 做一条运营周报视频，用 C:\Users\YourName\Videos\reporter.mp4 作为人物，按 C:\Users\YourName\Audio\weekly_report.mp3 说话，语气自然。
 
 💡 提示：
 将示例中的 C:\Users\YourName\*** 替换为你电脑上的实际路径，例如 D:\video\person.mp4。
@@ -158,47 +158,47 @@ Agent 执行前需确认可用认证：
 | 套餐时长限制 | 音频时长必须小于或等于当前套餐允许的最长时长；超限时，前置检查会返回套餐名称和套餐时长限制 |
 
 *   [ ] 输入视频和音频满足上方格式、大小、分辨率、比例、人脸、语音和套餐时长要求
-    
+
 *   [ ] 支持 skills 的 Agent 环境（如 Cursor / Codex / OpenClaw 等）
-    
-*   [ ] 已配置 DUIX_API_KEY （[获取方式](https://www.duix.com/dashboard/duix-cli-skills/keys)）
+
+*   [ ] 已配置 DUIX_API_KEY （[获取方式](https://www.duix.com/dashboard/avatar-video-generation/apikeys)）
 
 ---
 
 ## 安全说明
 
 *   该 skill 仅处理你提供的本地输入素材与认证信息
-    
+
 *   **建议不要在公开日志中暴露完整 API Key**
-    
+
 *   如需排查，优先分享脱敏后的错误信息
-    
+
 
 ---
 
 ## 常见问题
 
-**Q: 我需要学命令行吗？**  
+**Q: 我需要学命令行吗？**
 A: 不需要。你可以直接通过 Agent 对话完成安装、配置和使用，全程无需手动敲命令。
 
-**Q: 安装后 Agent 找不到 skill？**  
+**Q: 安装后 Agent 找不到 skill？**
 A: 确认 `duix-avatar-video-generation/SKILL.md` 和 `duix-avatar-video-generation/scripts/duix_run.sh` 在 skills 目录下，且 Agent 已重新加载 skills。
 
-**Q: 提示 "DUIX\_API\_KEY not found"？**  
-A: 检查环境变量是否生效，或重新配置本地配置文件。  
-如果还没有 Key，前往 [API Key 管理页面](https://www.duix.com/dashboard/duix-cli-skills/keys) 获取。
+**Q: 提示 "DUIX\_API\_KEY not found"？**
+A: 检查环境变量是否生效，或重新配置本地配置文件。
+如果还没有 Key，前往 [API Key 管理页面](https://www.duix.com/dashboard/avatar-video-generation/apikeys) 获取。
 
-**Q: 积分消耗如何计算？**  
-A: 通过 Skills 发起的调用，将使用所登录账户的积分。具体计费标准请参考 [Pricing 价格页面](https://www.duix.com/dashboard/duix-cli-skills/pricing)。
+**Q: 积分消耗如何计算？**
+A: 通过 Skills 发起的调用，将使用所登录账户的积分。具体计费标准请参考 [Pricing 价格页面](https://www.duix.com/dashboard/avatar-video-generation/pricing)。
 
-**Q: 积分不足怎么办？**  
-A: 前往 [Pricing 价格页面](https://www.duix.com/dashboard/duix-cli-skills/pricing) 查看套餐并充值。
+**Q: 积分不足怎么办？**
+A: 前往 [Pricing 价格页面](https://www.duix.com/dashboard/avatar-video-generation/pricing) 查看套餐并充值。
 
-**Q: 生成任务很慢怎么办？**  
+**Q: 生成任务很慢怎么办？**
 A: 视频生成本身可能需要较长时间。短视频任务通常也可能等待十几分钟到更久，高峰期会更慢。建议耐心等待，或避开高峰时段重试。
 
-**Q: 失败会扣积分吗？**  
-A: 一般生成失败、审核拦截、模型异常等场景可能有返还机制，但不要把"失败一定不消耗"当成固定承诺。  
+**Q: 失败会扣积分吗？**
+A: 一般生成失败、审核拦截、模型异常等场景可能有返还机制，但不要把"失败一定不消耗"当成固定承诺。
 如果遇到疑似误扣，保留项目链接、节点信息、任务时间和失败原因，再反馈给官方。
 
 ---

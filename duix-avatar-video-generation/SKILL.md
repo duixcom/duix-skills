@@ -11,10 +11,10 @@ tags: [duix,video, ai, lip-sync, dub, video-generation, avatar, digital-human, a
 
 Generate digital human videos using duix-cli. Takes a video of a person and an audio file, produces a video where the person appears to speak the audio content.
 
-## When to Use  
+## When to Use
 - User asks to generate a digital human video
-- User provides a video of a person and an audio file, wanting the person to speak the audio  
-- User mentions phrases like "digital human", "talking head video", "make this person speak", "lip sync video", "duix"  
+- User provides a video of a person and an audio file, wanting the person to speak the audio
+- User mentions phrases like "digital human", "talking head video", "make this person speak", "lip sync video", "duix"
 
 ## Prerequisites
 
@@ -71,7 +71,7 @@ Audio-duration-limit rejection template:
 &#9888;&#65039; Audio duration exceeds plan limit
 Current audio duration: AUDIO_DURATION_MINUTES minutes
 Your GRADE_NAME plan limit: DURATION_MINUTES minutes
-To synthesize longer videos, please upgrade your plan: https://newtest.duix.com/dashboard/duix-cli-skills/pricing
+To synthesize longer videos, please upgrade your plan: https://www.duix.com/dashboard/avatar-video-generation/pricing
 ```
 - If `data.canContinue` is `true`, ask the user to confirm explicitly. The first line of the confirmation prompt must start with the light bulb emoji, using `&#128161;` in script output and rendering as `💡` in the final user-facing message:
 
@@ -189,7 +189,7 @@ Output File:
 
 Credit Usage:
   - Credits consumed by this video: REQUIRED_CREDITS credits
-  - Remaining credits: CREDITS_LEFT credits ([Recharge](https://www.duix.com/dashboard/duix-cli-skills/pricing))
+  - Remaining credits: CREDITS_LEFT credits ([Recharge](https://www.duix.com/dashboard/avatar-video-generation/pricing))
 ```
 
 Failure template:
@@ -205,7 +205,7 @@ Suggestions:
   - For video issues: check whether the video is front-facing, clear, unobstructed, and within the supported resolution range
   - For audio issues: confirm the audio format is MP3/WAV and can be played normally
   - For network issues: retry later or check the network connection
-  - For credit issues: go to the [DUIX recharge page](https://www.duix.com/dashboard/duix-cli-skills/pricing) to recharge
+  - For credit issues: go to the [DUIX recharge page](https://www.duix.com/dashboard/avatar-video-generation/pricing) to recharge
 
 To retry, confirm the source assets and submit again.
 ```
