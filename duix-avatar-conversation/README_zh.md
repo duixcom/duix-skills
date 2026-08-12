@@ -28,10 +28,12 @@ duix-skills/duix-avatar-conversation/scripts/duix_run.sh
 # 从 npm 官方源安装 duix-cli
 npm i duix-cli -g --registry=https://registry.npmjs.org/
 
-# 可选：对比本地版本和官方 npm 包版本
+# 通过 npm 官方源检查版本；版本不一致时升级到最新版
 # 包页面：https://www.npmjs.com/package/duix-cli
 duix-cli --version
 npm view duix-cli version --registry=https://registry.npmjs.org/
+npm i duix-cli -g --registry=https://registry.npmjs.org/
+duix-cli --version
 ```
 
 > **Agent 集成要求**：将 `duix-skills/duix-avatar-conversation` 放入 Agent 的 skills 目录并确保可发现 `duix-avatar-conversation/SKILL.md`。
@@ -61,6 +63,8 @@ setx DUIX_APP_KEY "your-app-key"
 > 💰 **需要更多定制次数？** 前往 [Pricing 价格页面](https://www.duix.com/dashboard/avatar-conversation/pricing) 查看套餐并充值。
 
 注意：avatar 相关命令**不需要** `DUIX_API_KEY`，仅需 `DUIX_APP_ID` 和 `DUIX_APP_KEY`。
+
+如果任一凭证未设置，请先将上方命令复制到命令行执行，再重新运行 Skill。不要在对话或公开日志中发送凭证。
 
 ---
 
@@ -166,6 +170,8 @@ Agent 执行前需确认可用认证：
 | 语言 | 默认 English，支持 40+ 种语言（Chinese、Japanese、Korean 等） |
 | 定制次数 | 创建 1 个数字人消耗 1 次定制次数；余额不足时无法提交 |
 
+如果图片未通过格式、大小、比例或人脸校验，Agent 会用通俗语言说明问题，并询问是否使用大模型将图片转换、缩放或裁剪为符合要求的人像。只有在你明确同意后才会处理图片。
+
 ### 环境与配置检查清单
 
 * [ ] 输入图片满足上方格式、大小、比例和人脸要求
@@ -189,7 +195,10 @@ Agent 执行前需确认可用认证：
 A: 确认 `duix-avatar-conversation/SKILL.md` 和 `duix-avatar-conversation/scripts/duix_run.sh` 在 skills 目录下，且 Agent 已重新加载 skills。
 
 **Q: 提示 “DUIX_APP_ID / DUIX_APP_KEY not found”？**
-A: 检查环境变量是否生效，或重新运行 `./scripts/duix_run.sh --config` 进行交互式配置。如果还没有凭证，前往 [API 密钥管理页面](https://www.duix.com/dashboard/avatar-conversation/apikeys) 获取。
+A: 请将“配置凭证”中的环境变量命令复制到命令行执行后，再重新运行 Skill。如果还没有凭证，前往 [API 密钥管理页面](https://duix.com/dashboard/avatar-conversation/apikeys) 获取。
+
+**Q: 图片不符合要求怎么办？**
+A: 你可以换一张人像，或明确让 Agent 使用大模型将图片转换、缩放或裁剪为支持的 JPG/PNG 格式，且大小不超过 10 MB、比例为 16:9 或 9:16。
 
 **Q: 状态一直是 processing，是不是卡住了？**
 A: 不是卡住。`processing` 是正常的制作中状态，数字人生成通常需要几分钟时间。请继续轮询同一个 `task_id`，不要重新创建新任务，也不要告诉用户“任务卡死了”。
@@ -200,7 +209,7 @@ A: 不需要。你可以直接通过 Agent 对话完成安装、配置和使用�
 **Q: 一个 task_id 可以多次查询吗？**
 A: 可以。`task_id` 是永久有效的，你可以随时用 `avatar status <task_id>` 查询结果，即使之前已经查询过。
 
-**Q: 提示 “定制次数不足”（skill_code=40301）怎么办？**
+**Q: 提示 “定制次数不足”怎么办？**
 A: 你的账号定制次数已用完，需要订阅套餐。前往 [Pricing 价格页面](https://www.duix.com/dashboard/avatar-conversation/pricing) 充值后再次尝试即可。
 
 **Q: 制作失败了，定制次数会退还吗？**

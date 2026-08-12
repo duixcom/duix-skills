@@ -8,7 +8,7 @@ description: >-
   realtime conversational avatar, custom digital human, talking avatar chat,
   interactive digital human, 实时对话数字人, 定制数字人对话, or mentions
   duix-avatar-conversation / duix-get-avatar-create-result.
-version: 1.2.8
+version: 1.2.9
 author: duix
 compatibility: openclaw, cursor, copilot, claude-code, codex, gemini
 tags: [duix, avatar, conversation, realtime, digital-human, chat, tts, duix-cli]
@@ -30,6 +30,15 @@ Use this skill when the user wants a realtime conversational digital human / cus
 npm i duix-cli -g --registry=https://registry.npmjs.org/
 ```
 
+Before **every** avatar operation, check the installed CLI against the official npm registry and upgrade it when it is not current. Do not continue until the upgrade succeeds and the installed version matches the registry version.
+
+```bash
+duix-cli --version
+npm view duix-cli version --registry=https://registry.npmjs.org/
+npm i duix-cli -g --registry=https://registry.npmjs.org/ # run when versions differ
+duix-cli --version                                  # verify the upgrade
+```
+
 Required environment variables (avatar commands):
 
 ```bash
@@ -39,7 +48,23 @@ export DUIX_APP_KEY="your-app-key"
 
 `DUIX_API_KEY` is **not** required for avatar create/check/status.
 
-If credentials are missing, help the user configure them before continuing.
+If either credential is missing, **stop before any avatar command**. Give the user copyable commands; do not ask them to paste credentials into chat:
+
+```bash
+# macOS / Linux (current shell)
+export DUIX_APP_ID="your-app-id"
+export DUIX_APP_KEY="your-app-key"
+
+# Windows PowerShell (current window)
+$env:DUIX_APP_ID="your-app-id"
+$env:DUIX_APP_KEY="your-app-key"
+
+# Windows PowerShell (persistent; open a new terminal afterwards)
+setx DUIX_APP_ID "your-app-id"
+setx DUIX_APP_KEY "your-app-key"
+```
+
+Get the values here: https://duix.com/dashboard/avatar-conversation/apikeys
 
 ---
 
@@ -59,6 +84,7 @@ These rules override convenience. Violating them is a skill failure.
 10. Treat `exitCode=0` + `success=true` carefully: also inspect `need_select` / `need_confirm`. Intermediate soft responses must not be treated as “avatar created”.
 11. On `skill_code=40301`, tell the user quota is insufficient and guide them to recharge at `https://www.duix.com/pricing` (or `detail.pricing_url` / `detail.solution`).
 12. On status `failed`, always relay both the failure reason **and** that custom quota was refunded.
+13. **Never expose raw CLI errors, JSON payloads, stack traces, or error codes to the user.** Interpret them internally and describe the next action in plain language.
 
 ---
 
@@ -94,12 +120,13 @@ If there is no image yet, **stop here**. Do not move to voice selection.
 1. Local aspect ratio **16:9** or **9:16**
 2. Platform **`imageCheck`**: format compliance + face detection
 
-If image validation fails (`skill_code=40002` or imageCheck error):
+If image validation fails (invalid image or imageCheck error):
 
-1. Show the failure reason to the user
-2. Ask for a new image
-3. Do **not** proceed to TTS / quota / submit
-4. Do **not** claim the avatar was created
+1. State the problem in plain language, such as unsupported format, file too large, unsupported ratio, or an unclear/non-front-facing face. Do not expose the CLI response or its code.
+2. Ask: **“Would you like me to use an AI model to convert, resize, or crop this image into a compliant portrait? Reply yes to proceed, or provide a different image.”**
+3. Only transform the image after explicit user consent. Preserve the user's intended subject; output JPG or PNG under 10 MB at 16:9 or 9:16, and then validate it again.
+4. If the user declines, ask for a replacement image.
+5. Do **not** proceed to TTS / quota / submit and do **not** claim the avatar was created.
 
 ### Step 2: Select TTS voice (required HARD GATE, with preview)
 
@@ -113,7 +140,7 @@ duix-cli avatar create --coverImageUrl "<image>"
 
 | Signal | Meaning | Required agent action |
 | --- | --- | --- |
-| Image check failure / `40002` | Portrait invalid | **STOP.** Show reason. Ask for a new image. |
+| Image check failure | Portrait invalid | **STOP.** Explain the issue plainly, offer AI-assisted conversion/resizing/cropping, and wait for consent or a replacement image. |
 | `data.needSelect=true` **or** `data.skillPayload.need_select=true` | TTS dropdown required; create **not** submitted | **STOP.** List every option with name + 试听 audio link (when `preview_url` exists). Wait. |
 | `data.skillPayload.skill_code=100` and no `task_id` | Intermediate soft state (select / confirm) | Inspect `need_select` / `need_confirm`; do not treat as created |
 | `data.taskId` / `data.skillPayload.data.task_id` present | Create actually submitted | Only then proceed to status polling |
@@ -227,7 +254,7 @@ When `need_confirm` is true:
 4. User says 否 / no / n → cancel and end. Optionally call create once with `--confirm 否`
 5. **Never auto-confirm** to save a turn
 
-When `40301`:
+When the account does not have enough custom quota:
 
 > 定制次数不足，无法继续创建。请前往 https://www.duix.com/pricing 订阅/充值后再试。
 
@@ -267,7 +294,7 @@ On success, read `data.skillPayload.data.task_id` (or `data.taskId`) and tell th
 
 If create still returns `need_confirm`, confirmation was missing — show the message again and **do not** claim submission succeeded.
 If it returns `need_select`, voice was missing/invalid — go back to Step 2.
-If it returns `40301`, go to recharge guidance and stop.
+If it reports insufficient custom quota, go to recharge guidance and stop.
 
 ### Step 7: Poll result and return conversation info / failure
 
@@ -346,18 +373,19 @@ Common flags:
 
 ---
 
-## Error Codes (prefer `data.skillPayload`)
+## Error Presentation
 
-| Code | Meaning |
+Use response fields internally to identify the failure, but never show error codes or raw CLI output. Use a short, actionable message instead:
+
+| Situation | User-facing message |
 | --- | --- |
-| 100 | Soft intermediate: TTS select / quota confirm / processing — inspect flags |
-| 200 | Success |
-| 40001 | Missing or conflicting params |
-| 40002 | Invalid image / aspect ratio / face check / upload failure |
-| 40101 | Auth failure |
-| 40301 | Custom quota insufficient — guide recharge at https://www.duix.com/pricing |
-| 408 | Polling timeout |
-| 500 / 50001 | Upstream failure (on create status fail, also say quota refunded) |
+| Invalid image format, size, ratio, or face check | Explain the image issue, then offer AI-assisted conversion/resizing/cropping and wait for consent. |
+| Missing or invalid credentials | Ask the user to set `DUIX_APP_ID` and `DUIX_APP_KEY` using the copyable commands in Prerequisites. |
+| Insufficient custom quota | “There is not enough custom quota to create this digital human. Please recharge or subscribe at https://www.duix.com/pricing.” |
+| Network or platform problem | “The service could not complete this request right now. Please check your connection and try again later.” |
+| Creation failed | State that creation failed, provide the plain-language reason when safely available, and say that custom quota was refunded. |
+
+Do not repeat diagnostic jargon verbatim. For example, replace a low-level upload, parser, or validation message with the affected item and an action the user can take.
 
 ---
 
@@ -370,7 +398,7 @@ Common flags:
 5. For custom images, create returns `need_confirm=true` until user replies 是; only then re-run with `--confirm 是` / `--yes` — never auto-confirm
 6. **`processing` means "still generating", not stuck** — keep polling the same `task_id`; never recreate or declare failure just because status is `processing`
 7. On failure, always mention **定制次数已退还**
-8. On 40301, always provide the pricing/recharge link
+8. On insufficient custom quota, always provide the pricing/recharge link
 9. Never print full secrets
 10. Never reimplement API calls outside duix-cli
 
@@ -392,11 +420,14 @@ Rules:
 2. **`need_confirm`** means non-interactive scripts **must not** pre-pass `--yes`. Trigger one create without `--confirm`, show the platform confirm message, then only after the user answers 是 submit again with `--yes`.
 3. `avatar check` is an **early preview** only. Passing preview confirmation must never auto-append `--yes` to create.
 4. Helper script reference: `scripts/duix_run.sh run --coverImageUrl <path> --ttsName <user-selected> ...`
+5. `duix_run.sh` must compare the installed `duix-cli` with the official npm registry before every command, upgrade when needed, and verify the installed version before continuing.
+6. Scripts must translate CLI failures into plain-language output and must not print raw JSON, error codes, or stack traces to users. For invalid image input, offer AI-assisted conversion/resizing/cropping and wait for explicit consent.
 
 ## Version History
 
 | Updated At | Version | Changes |
 | --- | --- | --- |
+| 2026-08-11 | v1.2.9 | Check and automatically update `duix-cli` from the official npm registry; provide copyable credential setup; translate CLI failures into plain language; offer AI-assisted repair for invalid portrait images |
 | 2026-08-06 | v1.2.8 | Harden TTS list UX: every option with preview audio must show a clickable 试听 link beside the name |
 | 2026-08-05 | v1.2.7 | Align business flow: imageCheck before TTS; TTS preview URLs; recharge + refund + full success deliverable |
 | 2026-08-05 | v1.2.6 | Fix `duix_run.sh` helper: handle `need_confirm`, full options, summary, 40301; add automation notes |

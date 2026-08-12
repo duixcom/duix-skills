@@ -20,7 +20,6 @@
 #   --name <name>
 #   --greetings <text>
 #   --profile <text>
-#   --no-update-check
 #   --yes / --confirm 是   # only after user confirmed quota (helper will prompt)
 
 set -e
@@ -40,8 +39,6 @@ NC='\033[0m'
 CONFIG_FILE="$HOME/.duixrc"
 NPM_REGISTRY="https://registry.npmjs.org/"
 NPM_INSTALL_CMD="npm i duix-cli -g --registry=$NPM_REGISTRY"
-NO_UPDATE_CHECK=0
-
 COVER_IMAGE_URL=""
 COVER_IMAGE=""
 CONVERSATION_ID=""
@@ -134,9 +131,22 @@ ensure_credentials() {
   load_config
 
   if [ -z "${DUIX_APP_ID:-}" ] || [ -z "${DUIX_APP_KEY:-}" ]; then
-    echo -e "${YELLOW}Avatar credentials were not detected.${NC}"
-    echo -e "Usage: $0 --config"
-    set_config
+    echo -e "${YELLOW}未检测到创建对话数字人所需的凭证。请先在命令行设置 DUIX_APP_ID 和 DUIX_APP_KEY，然后重新运行。${NC}" >&2
+    echo "" >&2
+    echo "macOS / Linux:" >&2
+    echo 'export DUIX_APP_ID="your-app-id"' >&2
+    echo 'export DUIX_APP_KEY="your-app-key"' >&2
+    echo "" >&2
+    echo "Windows PowerShell（当前窗口）：" >&2
+    echo '$env:DUIX_APP_ID="your-app-id"' >&2
+    echo '$env:DUIX_APP_KEY="your-app-key"' >&2
+    echo "" >&2
+    echo "Windows PowerShell（永久设置；请在新窗口中重新打开终端后使用）：" >&2
+    echo 'setx DUIX_APP_ID "your-app-id"' >&2
+    echo 'setx DUIX_APP_KEY "your-app-key"' >&2
+    echo "" >&2
+    echo "获取 DUIX_APP_ID 和 DUIX_APP_KEY：http://duix.com/dashboard/avatar-conversation/apikeys" >&2
+    exit 1
   fi
 
   echo -e "DUIX_APP_ID: ${GREEN}$(mask_secret "$DUIX_APP_ID")${NC}" >&2
@@ -167,7 +177,6 @@ Options:
   --name <name>
   --greetings <text>
   --profile <text>
-  --no-update-check                skip npm version check
 
 Hard gates (do not bypass):
   1) need_select  → stop, ask user to pick TTS, re-run with --ttsName
@@ -230,35 +239,61 @@ ask_yes_no() {
   esac
 }
 
+ensure_duix_cli() {
+  if command -v duix-cli >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if ! command -v npm >/dev/null 2>&1; then
+    echo -e "${RED}未找到 duix-cli，也无法使用 npm 安装它。请先安装 Node.js 和 npm 后重试。${NC}" >&2
+    exit 1
+  fi
+
+  echo -e "${CYAN}正在从 npm 官方源安装最新版本的 duix-cli...${NC}" >&2
+  if ! npm i duix-cli -g --registry="$NPM_REGISTRY" >&2; then
+    echo -e "${RED}duix-cli 安装失败。请检查网络连接和 npm 权限后重试。${NC}" >&2
+    exit 1
+  fi
+
+  if ! command -v duix-cli >/dev/null 2>&1; then
+    echo -e "${RED}duix-cli 已安装，但当前终端尚未找到它。请重新打开终端后再试。${NC}" >&2
+    exit 1
+  fi
+}
+
 check_duix_cli_update() {
   local current_version
   local latest_version
 
-  if [ "$NO_UPDATE_CHECK" = "1" ]; then
-    return 0
-  fi
-
-  echo -e "${CYAN}Checking duix-cli version from: $NPM_REGISTRY${NC}" >&2
+  echo -e "${CYAN}正在通过 npm 官方源检查 duix-cli 版本...${NC}" >&2
 
   if ! command -v npm >/dev/null 2>&1; then
-    echo -e "${YELLOW}Warning: npm was not found, skip version check.${NC}" >&2
-    return 0
+    echo -e "${RED}未找到 npm，无法确认 duix-cli 是否为最新版本。请先安装 npm 后重试。${NC}" >&2
+    exit 1
   fi
 
   current_version=$(duix-cli --version 2>/dev/null | grep -oE '[0-9]+(\.[0-9]+){1,2}([-+][0-9A-Za-z.-]+)?' | head -1 || true)
   latest_version=$(npm view duix-cli version --registry="$NPM_REGISTRY" 2>/dev/null || true)
 
   if [ -z "$current_version" ] || [ -z "$latest_version" ]; then
-    echo -e "${YELLOW}Warning: failed to compare duix-cli versions.${NC}" >&2
-    return 0
+    echo -e "${RED}无法完成 duix-cli 版本检查。请检查网络连接后重试。${NC}" >&2
+    exit 1
   fi
 
   if [ "$current_version" != "$latest_version" ]; then
-    echo -e "${YELLOW}duix-cli has a newer version available.${NC}" >&2
-    echo -e "Current: ${YELLOW}$current_version${NC}  Latest: ${GREEN}$latest_version${NC}" >&2
-    echo -e "Update: $NPM_INSTALL_CMD" >&2
+    echo -e "${CYAN}正在升级 duix-cli 到最新版本...${NC}" >&2
+    if ! npm i duix-cli -g --registry="$NPM_REGISTRY" >&2; then
+      echo -e "${RED}duix-cli 升级失败。请检查网络连接和 npm 权限后重试。${NC}" >&2
+      exit 1
+    fi
+
+    current_version=$(duix-cli --version 2>/dev/null | grep -oE '[0-9]+(\.[0-9]+){1,2}([-+][0-9A-Za-z.-]+)?' | head -1 || true)
+    if [ "$current_version" != "$latest_version" ]; then
+      echo -e "${RED}duix-cli 未能升级到最新版本。请重新打开终端后再试。${NC}" >&2
+      exit 1
+    fi
   else
-    echo -e "${GREEN}duix-cli is up to date: $current_version${NC}" >&2
+    echo -e "${GREEN}duix-cli 已是最新版本（$current_version）。${NC}" >&2
   fi
 }
 
@@ -282,8 +317,6 @@ parse_create_options() {
         GREETINGS="${2:-}"; shift 2 || true ;;
       --profile)
         PROFILE="${2:-}"; shift 2 || true ;;
-      --no-update-check)
-        NO_UPDATE_CHECK=1; shift ;;
       --yes|--confirm)
         # Intentionally ignored as inbound auto-flag.
         # Helper will only append --yes after interactive user confirmation.
@@ -307,11 +340,11 @@ parse_create_options() {
 
 validate_create_inputs() {
   if [ -n "$COVER_IMAGE" ] && [ -n "$COVER_IMAGE_URL" ]; then
-    echo -e "${RED}Error: --coverImage and --coverImageUrl cannot be used together.${NC}" >&2
+    echo -e "${RED}请只提供一种人像输入方式：图片路径/网址或 Base64 图片。${NC}" >&2
     exit 1
   fi
   if [ -z "$COVER_IMAGE" ] && [ -z "$COVER_IMAGE_URL" ] && [ -z "$CONVERSATION_ID" ]; then
-    echo -e "${RED}Error: provide --coverImageUrl / --coverImage, or --conversationId.${NC}" >&2
+    echo -e "${RED}请提供一张人像图片，或已有的 conversationId。${NC}" >&2
     exit 1
   fi
 }
@@ -352,7 +385,7 @@ run_create_once() {
   fi
 
   echo -e "${CYAN}$ ${args[*]}${NC}" >&2
-  "${args[@]}"
+  "${args[@]}" 2>&1
 }
 
 print_next_command_after_tts_select() {
@@ -401,21 +434,80 @@ print_submit_summary() {
   fi
 }
 
+print_image_remediation() {
+  local issue="$1"
+
+  echo -e "${YELLOW}无法使用这张人像图片：${issue}${NC}" >&2
+  echo "是否要使用大模型将图片处理为符合要求的版本？可处理为 JPG/PNG、10 MB 以内，并裁剪为 16:9 或 9:16；处理前会保留清晰、正脸且无遮挡的人像。回复“是”即可处理，或提供另一张图片。" >&2
+}
+
 handle_create_errors() {
   local json="$1"
-  local skill_code
+  local skill_code success ok exit_code message lower_message
+
+  # TTS selection and quota confirmation are expected intermediate responses.
+  if json_flag_true "$json" need_select needSelect need_confirm needConfirm; then
+    return 0
+  fi
 
   skill_code=$(json_value "$json" "skill_code")
   if [ -z "$skill_code" ]; then
     skill_code=$(json_value "$json" "code")
   fi
+  success=$(json_value "$json" "success")
+  ok=$(json_value "$json" "ok")
+  exit_code=$(json_value "$json" "exitCode")
+  message=$(json_value "$json" "reason")
+  if [ -z "$message" ]; then
+    message=$(json_value "$json" "message")
+  fi
+  if [ -z "$message" ]; then
+    message=$(json_value "$json" "msg")
+  fi
+  lower_message=$(printf '%s' "$message" | tr '[:upper:]' '[:lower:]')
 
   if [ "$skill_code" = "40301" ]; then
-    echo -e "${RED}定制次数不足（skill_code=40301），无法继续创建。${NC}" >&2
-    echo -e "${YELLOW}请前往充值/订阅：https://www.duix.com/pricing${NC}" >&2
-    echo "$json"
-    exit 1
+    echo -e "${RED}定制次数不足，暂时无法创建数字人。${NC}" >&2
+    echo "请前往充值或订阅：https://www.duix.com/pricing" >&2
+    return 1
   fi
+
+  if [ "$skill_code" = "40002" ] || [[ "$lower_message" == *image* ]] || [[ "$lower_message" == *format* ]] || [[ "$lower_message" == *ratio* ]] || [[ "$lower_message" == *face* ]] || [[ "$lower_message" == *图片* ]] || [[ "$lower_message" == *人脸* ]]; then
+    case "$lower_message" in
+      *format*|*格式*) print_image_remediation "图片格式不受支持" ;;
+      *size*|*large*|*mb*|*大小*) print_image_remediation "图片文件过大" ;;
+      *ratio*|*aspect*|*比例*) print_image_remediation "图片比例不是 16:9 或 9:16" ;;
+      *face*|*人脸*) print_image_remediation "请使用清晰、正脸且无遮挡的单人照片" ;;
+      *) print_image_remediation "图片未通过素材检查" ;;
+    esac
+    return 1
+  fi
+
+  if [ "$skill_code" = "40101" ] || [[ "$lower_message" == *auth* ]] || [[ "$lower_message" == *credential* ]]; then
+    echo -e "${RED}无法验证账户凭证。请确认 DUIX_APP_ID 和 DUIX_APP_KEY 设置正确后重试。${NC}" >&2
+    return 1
+  fi
+
+  if [ "$skill_code" = "500" ] || [ "$skill_code" = "50001" ] || [[ "$lower_message" == *timeout* ]] || [[ "$lower_message" == *network* ]]; then
+    echo -e "${RED}服务暂时无法完成本次创建。请稍后重试，并检查网络连接。${NC}" >&2
+    return 1
+  fi
+
+  if [ "$skill_code" = "100" ] || [ "$skill_code" = "200" ]; then
+    return 0
+  fi
+
+  if [ "$success" = "false" ] || [ "$ok" = "false" ] || { [ -n "$exit_code" ] && [ "$exit_code" != "0" ]; } || [ -n "$skill_code" ]; then
+    echo -e "${RED}暂时无法创建数字人。请检查图片和账户设置后重试。${NC}" >&2
+    return 1
+  fi
+
+  if [ -n "$json" ] && [[ "$json" != *"{"* ]]; then
+    echo -e "${RED}暂时无法创建数字人。请检查网络连接后重试。${NC}" >&2
+    return 1
+  fi
+
+  return 0
 }
 
 # Preview only: block when quota is already insufficient.
@@ -431,16 +523,20 @@ preview_quota_check() {
   fi
 
   echo -e "${CYAN}[STEP 0] Preview custom quota (early check only)...${NC}"
-  check_json=$(duix-cli avatar check)
-  echo "$check_json"
+  if ! check_json=$(duix-cli avatar check 2>&1); then
+    echo -e "${RED}暂时无法查询定制次数，请检查网络连接后重试。${NC}" >&2
+    exit 1
+  fi
 
   can_continue=$(json_value "$check_json" "canContinue")
   remain=$(json_value "$check_json" "currentRemain")
   msg=$(json_value "$check_json" "msg")
 
   if [ "$can_continue" != "true" ]; then
-    handle_create_errors "$check_json"
-    echo -e "${RED}Quota preview failed. Aborting before create.${NC}" >&2
+    if ! handle_create_errors "$check_json"; then
+      exit 1
+    fi
+    echo -e "${RED}暂时无法确认定制次数，请稍后重试。${NC}" >&2
     exit 1
   fi
 
@@ -467,6 +563,52 @@ extract_task_id() {
   printf '%s\n' "$task_id"
 }
 
+run_avatar_check() {
+  local check_json
+  local can_continue
+
+  if ! check_json=$(duix-cli avatar check 2>&1); then
+    echo -e "${RED}暂时无法查询定制次数，请检查网络连接后重试。${NC}" >&2
+    return 1
+  fi
+
+  can_continue=$(json_value "$check_json" "canContinue")
+  if [ "$can_continue" = "false" ]; then
+    if ! handle_create_errors "$check_json"; then
+      return 1
+    fi
+    echo -e "${RED}定制次数不足，暂时无法创建数字人。${NC}" >&2
+    echo "请前往充值或订阅：https://www.duix.com/pricing" >&2
+    return 1
+  fi
+  if ! handle_create_errors "$check_json"; then
+    return 1
+  fi
+
+  echo "$check_json"
+}
+
+run_avatar_status() {
+  local status_json
+  local task_status
+
+  if ! status_json=$(duix-cli avatar status "$@" 2>&1); then
+    echo -e "${RED}暂时无法查询生成进度，请检查网络连接后重试。${NC}" >&2
+    return 1
+  fi
+
+  task_status=$(json_value "$status_json" "task_status")
+  if [ "$task_status" = "failed" ]; then
+    echo -e "${RED}数字人生成失败，定制次数已退还。请检查素材后重试。${NC}" >&2
+    return 1
+  fi
+  if ! handle_create_errors "$status_json"; then
+    return 1
+  fi
+
+  echo "$status_json"
+}
+
 # Full create flow with hard gates. Optionally poll status when POLL_STATUS=1.
 run_create_flow() {
   local poll_status="${1:-0}"
@@ -485,8 +627,10 @@ run_create_flow() {
   if [ "$has_custom_image" = "1" ] && [ -z "$TTS_NAME" ]; then
     echo -e "${CYAN}[STEP 1] Fetching TTS options (no --ttsName yet)...${NC}"
     create_json=$(run_create_once 0)
+    if ! handle_create_errors "$create_json"; then
+      exit 1
+    fi
     echo "$create_json"
-    handle_create_errors "$create_json"
 
     if json_flag_true "$create_json" need_select needSelect; then
       print_next_command_after_tts_select
@@ -504,8 +648,10 @@ run_create_flow() {
   else
     echo -e "${CYAN}[STEP 1] Creating avatar (without --yes first)...${NC}"
     create_json=$(run_create_once 0)
+    if ! handle_create_errors "$create_json"; then
+      exit 1
+    fi
     echo "$create_json"
-    handle_create_errors "$create_json"
 
     if json_flag_true "$create_json" need_select needSelect; then
       print_next_command_after_tts_select
@@ -538,11 +684,13 @@ run_create_flow() {
     print_submit_summary
     echo -e "${CYAN}[STEP 2] User confirmed. Submitting with --yes...${NC}"
     create_json=$(run_create_once 1)
+    if ! handle_create_errors "$create_json"; then
+      exit 1
+    fi
     echo "$create_json"
-    handle_create_errors "$create_json"
 
     if json_flag_true "$create_json" need_confirm needConfirm; then
-      echo -e "${RED}Still got need_confirm after --yes. Aborting.${NC}" >&2
+      echo -e "${RED}仍需要确认定制次数。请重新确认后再试。${NC}" >&2
       exit 1
     fi
     if json_flag_true "$create_json" need_select needSelect; then
@@ -553,13 +701,13 @@ run_create_flow() {
 
   task_id=$(extract_task_id "$create_json")
   if [ -z "$task_id" ]; then
-    echo -e "${RED}Failed to extract task_id. Create may still be waiting for need_select/need_confirm.${NC}" >&2
+    echo -e "${RED}暂时无法提交创建任务。请检查图片和账户设置后重试。${NC}" >&2
     if json_flag_true "$create_json" need_select needSelect; then
       print_next_command_after_tts_select
       exit 2
     fi
     if json_flag_true "$create_json" need_confirm needConfirm; then
-      echo -e "${YELLOW}need_confirm is still true. Re-run after user confirmation with helper flow.${NC}" >&2
+      echo -e "${YELLOW}仍在等待定制次数确认。请确认后重新提交。${NC}" >&2
       exit 2
     fi
     exit 1
@@ -568,7 +716,7 @@ run_create_flow() {
   echo -e "${GREEN}Task created: $task_id${NC}"
   if [ "$poll_status" = "1" ]; then
     echo -e "${CYAN}[STEP 3] Polling status...${NC}"
-    exec duix-cli avatar status "$task_id" -c
+    run_avatar_status "$task_id" -c
   else
     echo "Next: $0 status $task_id -c"
   fi
@@ -582,10 +730,6 @@ run_create_flow() {
 ARGS=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --no-update-check)
-      NO_UPDATE_CHECK=1
-      shift
-      ;;
     --config)
       set_config
       exit 0
@@ -607,11 +751,7 @@ if [ $# -lt 1 ]; then
   exit 0
 fi
 
-if ! command -v duix-cli >/dev/null 2>&1; then
-  echo -e "${RED}Error: duix-cli not found. Install: $NPM_INSTALL_CMD${NC}"
-  exit 1
-fi
-
+ensure_duix_cli
 check_duix_cli_update
 ensure_credentials
 
@@ -620,7 +760,7 @@ shift || true
 
 case "$CMD" in
   check)
-    exec duix-cli avatar check
+    run_avatar_check
     ;;
   create)
     parse_create_options "$@"
@@ -634,7 +774,7 @@ case "$CMD" in
     run_create_flow 1
     ;;
   status|result|get-result)
-    exec duix-cli avatar status "$@"
+    run_avatar_status "$@"
     ;;
   --coverImageUrl|--coverImage|--conversationId|--ttsName|--language|--name|--greetings|--profile)
     # Allow: ./duix_run.sh --coverImageUrl ./a.png --ttsName Echo ...

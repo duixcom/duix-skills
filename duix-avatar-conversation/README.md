@@ -28,10 +28,12 @@ duix-skills/duix-avatar-conversation/scripts/duix_run.sh
 # Install duix-cli from the official npm registry
 npm i duix-cli -g --registry=https://registry.npmjs.org/
 
-# Optional: compare installed version with the official npm package
+# Check the official npm registry and upgrade when the installed version differs
 # Package page: https://www.npmjs.com/package/duix-cli
 duix-cli --version
 npm view duix-cli version --registry=https://registry.npmjs.org/
+npm i duix-cli -g --registry=https://registry.npmjs.org/
+duix-cli --version
 ```
 
 > **Agent integration requirement**: Place `duix-skills/duix-avatar-conversation` in your agent's skills directory and make sure `duix-avatar-conversation/SKILL.md` is discoverable.
@@ -61,6 +63,8 @@ setx DUIX_APP_KEY "your-app-key"
 > **Need more custom quota?** Visit the [Pricing page](https://www.duix.com/pricing) to view plans and recharge.
 
 Note: avatar commands do **not** need `DUIX_API_KEY`. Only `DUIX_APP_ID` and `DUIX_APP_KEY` are required.
+
+If either credential is missing, copy the commands above into your terminal first. Do not share credentials in chat or public logs.
 
 ---
 
@@ -168,6 +172,8 @@ Replace https://github.com/duixcom/duix-skills/blob/main/duix-avatar-conversatio
 | Language | Default English; 40+ languages supported (Chinese, Japanese, Korean, etc.) |
 | Custom quota | Creating 1 digital human costs 1 custom count; submission fails when balance is insufficient |
 
+If an image fails format, size, ratio, or face validation, the agent will explain the issue plainly and ask whether you want it to use an AI model to convert, resize, or crop the image into a compliant portrait. It will only make that change after you explicitly agree.
+
 ### Environment & Config Checklist
 
 * [ ] Input image meets the format, size, ratio, and face requirements above
@@ -191,7 +197,10 @@ Replace https://github.com/duixcom/duix-skills/blob/main/duix-avatar-conversatio
 A: Confirm that `duix-avatar-conversation/SKILL.md` and `duix-avatar-conversation/scripts/duix_run.sh` are under the skills directory, and that the agent has reloaded skills.
 
 **Q: It says "DUIX_APP_ID / DUIX_APP_KEY not found". What should I do?**
-A: Check whether the environment variables have taken effect, or rerun `./scripts/duix_run.sh --config` for interactive setup. If you do not have credentials yet, get them from the [API Key management page](https://www.duix.com/dashboard/avatar-conversation/apikeys).
+A: Copy the environment-variable commands in **Configure Credentials** into your terminal, then run the skill again. If you do not have credentials yet, get them from the [API Key management page](https://duix.com/dashboard/avatar-conversation/apikeys).
+
+**Q: My image does not meet the requirements. What can I do?**
+A: You can provide another portrait, or explicitly ask the agent to use an AI model to convert, resize, or crop it to a supported JPG/PNG image under 10 MB at 16:9 or 9:16.
 
 **Q: Status stays at `processing`. Is it stuck?**
 A: No. `processing` means generation is in progress and usually takes a few minutes. Keep polling the same `task_id`. Do not create a new task, and do not tell the user the task is stuck.
@@ -202,7 +211,7 @@ A: No. You can complete installation, configuration, and usage directly through 
 **Q: Can I query the same `task_id` more than once?**
 A: Yes. `task_id` remains valid permanently. You can run `avatar status <task_id>` anytime, even after a previous successful query.
 
-**Q: It says custom quota is insufficient (`skill_code=40301`). What should I do?**
+**Q: It says custom quota is insufficient. What should I do?**
 A: Your custom quota is used up. Subscribe or recharge on the [Pricing page](https://www.duix.com/pricing), then try again.
 
 **Q: If generation fails, is the custom quota refunded?**
