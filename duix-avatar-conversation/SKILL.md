@@ -187,13 +187,7 @@ Ask proactively **only after TTS is selected**:
 Supported languages (use the exact string as `--language`):
 
 ```text
-Arabic, Azerbaijani, Belarusian, Bosnian, Bulgarian, Catalan, Chinese,
-Croatian, Czech, Danish, Dutch, English, Estonian, Finnish, French,
-Galician, German, Greek, Hebrew, Hindi, Hungarian, Indonesian, Italian,
-Japanese, Kannada, Kazakh, Korean, Latvian, Lithuanian, Macedonian, Malay,
-Nepali, Norwegian, Persian, Polish, Portuguese, Romanian, Russian, Serbian,
-Slovak, Slovenian, Spanish, Swedish, Tagalog, Tamil, Thai, Turkish,
-Ukrainian, Urdu, Vietnamese
+Chinese, English
 ```
 
 - Skip / keep default → `--language English`
