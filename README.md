@@ -98,7 +98,7 @@ Portrait photo → select TTS voice (hard gate) → choose language → optional
 
 **Key features:**
 
-- 🎙️ 40+ languages (default English)
+- 🎙️ Support both Chinese and English languages (default English)
 - 🎭 Optional persona: name, greeting, personality description
 - 🔒 Dual hard gates: user must manually pick a voice and confirm billing
 - 🔄 Custom quota is refunded automatically if generation fails
