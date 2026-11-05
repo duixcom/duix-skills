@@ -169,7 +169,7 @@ Replace https://github.com/duixcom/duix-skills/blob/main/duix-avatar-conversatio
 | Image aspect ratio | Must be 16:9 or 9:16 |
 | Image content | Clear front-facing portrait, unobstructed face, even lighting |
 | Face requirement | Exactly one human face; front-facing, clear, and unobstructed |
-| Language | Default English; 40+ languages supported (Chinese, Japanese, Korean, etc.) |
+| Language | Default English; Support both Chinese and English languages |
 | Custom quota | Creating 1 digital human costs 1 custom count; submission fails when balance is insufficient |
 
 If an image fails format, size, ratio, or face validation, the agent will explain the issue plainly and ask whether you want it to use an AI model to convert, resize, or crop the image into a compliant portrait. It will only make that change after you explicitly agree.
